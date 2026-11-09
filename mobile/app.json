@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Mintmark",
+    "slug": "mintmark",
+    "scheme": "mintmark",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#f5f1e8",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "us.inotel.mintmark",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Mintmark uses the camera to photograph the front of a coin so it can be identified and appraised.",
+        "NSPhotoLibraryUsageDescription": "Mintmark reads the coin photo you choose so it can be appraised.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Mintmark uses the camera to photograph the front of a coin so it can be identified and appraised.",
+          "photosPermission": "Mintmark reads the coin photo you choose so it can be appraised."
+        }
+      ]
+    ]
+  }
+}
