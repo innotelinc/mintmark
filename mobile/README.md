@@ -57,7 +57,10 @@ gh variable set MINTMARK_API_URL --body "https://your-worker.workers.dev"
 ```
 
 `MINTMARK_API_URL` must be a live `https` origin: the address is compiled into
-the app, and the workflow verifies it reached the JavaScript bundle.
+the app and the workflow verifies it reached the JavaScript bundle. If it is
+unset the build still runs and uploads, and testers are asked for a server
+address on first launch — which is how to get a build onto TestFlight before the
+Worker is deployed.
 
 ### 3. Build
 

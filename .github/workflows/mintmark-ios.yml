@@ -68,14 +68,14 @@ jobs:
       - name: Check the API origin
         run: |
           if [ -z "$API_URL" ]; then
-            echo "::error::MINTMARK_API_URL is not set. Add the deployed Worker origin as a repository variable (Settings -> Secrets and variables -> Actions -> Variables)."
-            exit 1
+            echo "::warning::MINTMARK_API_URL is not set, so this build has no server baked in: testers are asked for one on first launch. Set the variable and rerun once the Worker is deployed."
+          else
+            case "$API_URL" in
+              https://*) ;;
+              *) echo "::error::MINTMARK_API_URL must be an https origin"; exit 1 ;;
+            esac
+            echo "the app will call $API_URL"
           fi
-          case "$API_URL" in
-            https://*) ;;
-            *) echo "::error::MINTMARK_API_URL must be an https origin"; exit 1 ;;
-          esac
-          echo "the app will call $API_URL"
 
       - name: Install ASC API key
         env:
@@ -172,7 +172,9 @@ jobs:
           echo "bundle $BUNDLE $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist") ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist"))"
           test "$BUNDLE" = "$BUNDLE_ID" || { echo "::error::unexpected bundle id $BUNDLE"; exit 1; }
           /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$APP/Info.plist" | grep -q . || { echo "::error::NSCameraUsageDescription is missing"; exit 1; }
-          grep -a -q "$API_URL" "$APP/main.jsbundle" || { echo "::error::the API origin $API_URL is not in the bundled JS"; exit 1; }
+          if [ -n "$API_URL" ]; then
+            grep -a -q "$API_URL" "$APP/main.jsbundle" || { echo "::error::the API origin $API_URL is not in the bundled JS"; exit 1; }
+          fi
 
       - name: Export the .ipa
         env:
