@@ -89,11 +89,16 @@ per visitor per day caps the spend.
 
 ## Deploy to Freebuff Sites
 
+Live: **https://site-14e683b8ff8e42ea8147b66b91f8a10a.freebuff.page** (published
+preview environment). D1 `DB` and the `MINTMARK_API_KEY` secret are attached to
+it, and the repository variable `MINTMARK_API_URL` in `innotelinc/mintmark`
+points at it, so iOS builds bake in the same origin.
+
 1. `sites_create`, then `sites_add_storage` for D1 named `DB`.
 2. `npm run build`, then `sites_deploy` with `deploy.json`.
-3. Open the deployed site's `/admin` and paste the key, or set
-   `MINTMARK_API_KEY` in Sites → Secrets. Until then the capture page shows the
-   setup notice.
+3. Attach the key with Sites → Secrets (`MINTMARK_API_KEY`), then deploy once
+   more: a secret reaches the running Worker only with a new version. Pasting
+   the key in `/admin` instead needs no redeploy, because it lives in D1.
 
 ## Where things are
 
@@ -133,8 +138,11 @@ Mac and no EAS account needed. `mobile/README.md` has the one-time App Store
 Connect setup, the repository secrets and the build command.
 
 ```sh
-git tag mintmark-ios-v0.1.0 && git push origin mintmark-ios-v0.1.0
+gh workflow run mintmark-ios.yml -R innotelinc/mintmark
 ```
+
+Builds call the deployed Worker through `MINTMARK_API_URL`; the app's Settings
+screen can still point a build at another server at runtime.
 
 ## Security notes
 
