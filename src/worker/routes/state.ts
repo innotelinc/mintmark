@@ -5,7 +5,7 @@ import type { AppState } from '../../shared/types'
 import { appraisalsToday, utcDay } from '../db'
 import type { AppContext } from '../env'
 import { maskKey, readGatewaySettings } from '../gateway'
-import { privateJson, visitorKey } from '../http'
+import { privateJson } from '../http'
 
 export const state = new Hono<AppContext>()
 
@@ -27,7 +27,7 @@ state.get('/', async (c) => {
       keyHint: settings.key ? maskKey(settings.key) : null,
     },
     usage: {
-      used: await appraisalsToday(db, await visitorKey(c.req.raw)),
+      used: await appraisalsToday(db, c.get('visitor')),
       limit: DAILY_APPRAISAL_LIMIT,
       resetsAt: utcDay().end,
     },

@@ -9,7 +9,7 @@ import type { Appraisal, AppraisalAnalysis } from '../../shared/types'
 import { appraisalsToday, id, mapSummary, now, utcDay } from '../db'
 import type { AppContext } from '../env'
 import { readGatewaySettings } from '../gateway'
-import { privateJson, visitorKey } from '../http'
+import { privateJson } from '../http'
 import { VisionError, analyzeCoin } from '../vision'
 
 export const appraisals = new Hono<AppContext>()
@@ -47,7 +47,7 @@ function isBusy(owner: string): boolean {
 
 appraisals.post('/', async (c) => {
   const db = c.get('db')
-  const owner = await visitorKey(c.req.raw)
+  const owner = c.get('visitor')
   const settings = await readGatewaySettings(c.env, db)
   if (settings.requireKey && !settings.key) {
     return c.json({ error: 'not_configured', message: 'No gateway key is configured. Add one in the admin panel.' }, 503)
@@ -117,14 +117,14 @@ appraisals.get('/', async (c) => {
       `SELECT id, name, subtitle, value_low, value_high, currency, grade, grade_label, confidence, identified, thumb, created_at
        FROM appraisals WHERE owner_sub = ? ORDER BY created_at DESC LIMIT 100`,
     )
-    .bind(await visitorKey(c.req.raw))
+    .bind(c.get('visitor'))
     .all()
   return privateJson(c, { items: (result.results ?? []).map((row) => mapSummary(row as Record<string, unknown>)) })
 })
 
 // Everything this visitor has saved: the settings page's "delete all".
 appraisals.delete('/', async (c) => {
-  await c.get('db').prepare(`DELETE FROM appraisals WHERE owner_sub = ?`).bind(await visitorKey(c.req.raw)).run()
+  await c.get('db').prepare(`DELETE FROM appraisals WHERE owner_sub = ?`).bind(c.get('visitor')).run()
   return privateJson(c, { ok: true })
 })
 
@@ -132,7 +132,7 @@ appraisals.get('/:id', async (c) => {
   const row = await c
     .get('db')
     .prepare(`SELECT * FROM appraisals WHERE owner_sub = ? AND id = ?`)
-    .bind(await visitorKey(c.req.raw), c.req.param('id'))
+    .bind(c.get('visitor'), c.req.param('id'))
     .first<Record<string, unknown>>()
   if (!row) return c.json({ error: 'not_found', message: 'This appraisal is not here any more.' }, 404)
 
@@ -157,7 +157,7 @@ appraisals.delete('/:id', async (c) => {
   await c
     .get('db')
     .prepare(`DELETE FROM appraisals WHERE owner_sub = ? AND id = ?`)
-    .bind(await visitorKey(c.req.raw), c.req.param('id'))
+    .bind(c.get('visitor'), c.req.param('id'))
     .run()
   return privateJson(c, { ok: true })
 })

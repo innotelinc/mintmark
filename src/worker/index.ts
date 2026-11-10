@@ -6,6 +6,7 @@ import { appCors, sameOrigin } from './http'
 import { admin } from './routes/admin'
 import { appraisals } from './routes/appraisals'
 import { state } from './routes/state'
+import { identify } from './visitor'
 
 const app = new Hono<AppContext>()
 
@@ -14,7 +15,7 @@ app.get('/api/health', (c) => c.json({ ok: true }))
 // No sign-in: the app is open, and each visitor is identified only by a hash of
 // their address for their own collection and daily limit.
 const api = new Hono<AppContext>()
-api.use('*', appCors, requireDb, sameOrigin)
+api.use('*', appCors, requireDb, identify, sameOrigin)
 api.route('/state', state)
 api.route('/admin', admin)
 api.route('/appraisals', appraisals)

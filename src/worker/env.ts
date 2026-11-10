@@ -15,6 +15,9 @@ export interface Env {
 
 export type Variables = {
   db: D1Database
+  // Resolved by visitor.ts: a signed cookie, the device id a native build sends,
+  // or a hash of the address. Never the raw address.
+  visitor: string
 }
 
 export type AppContext = { Bindings: Env; Variables: Variables }

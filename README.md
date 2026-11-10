@@ -5,7 +5,8 @@ is, and what a collector would pay — with the reasons and the checks that woul
 confirm it.
 
 It runs on Freebuff Sites with D1 for the collection. There is no sign-in: the
-app is open, and each visitor's coins are kept under a hash of their IP address.
+app is open, and each visitor's coins are kept under an anonymous id, so a
+collection survives a change of address and two phones do not share one.
 The vision key stays on the server, pasted in the admin panel or set as an
 environment variable.
 
@@ -19,7 +20,8 @@ environment variable.
 3. The reply is validated and clamped server-side (confidence 0–1, grade 1–70,
    low ≤ high, no value when unidentified) before it is stored.
 4. The appraisal, its photo and a thumbnail go into D1, scoped to that visitor's
-   hashed address. Only a successful appraisal counts against the daily limit.
+   anonymous id — a signed cookie in a browser, the id a native build keeps on
+   the device. Only a successful appraisal counts against the daily limit.
 
 ## Run it
 
@@ -120,9 +122,10 @@ than attached to the site:
   sees its own origin, so that name is listed in `PUBLIC_ORIGINS` in
   `src/worker/http.ts`. Changing it needs a rebuild and a deploy; a mutation
   from an unlisted origin is still refused with 403.
-- Proxied traffic reaches the Worker from the edge's address, so everyone using
-  the friendly name shares one visitor hash and one daily allowance. The site's
-  own origin keeps per-visitor limits.
+- Proxied traffic reaches the Worker from the edge's address, so identity cannot
+  come from it: browsers are given a signed cookie and native builds send their
+  stored device id. The address hash is only the fallback for a client that
+  presents neither.
 
 `scripts/edge/` holds the idempotent scripts for this: `mint-dns.py`
 (Technitium; dry run unless given `--apply`), `mint-npm.py --apply` (certificate
@@ -135,8 +138,8 @@ that host in the NPM UI, which rewrites the file).
   the gateway URL and default model, `DAILY_APPRAISAL_LIMIT` and the size caps.
 - `src/worker/vision.ts`: the gateway request, error mapping, the key check, and
   the validation/clamping of the reply (`normalize`). `gateway.ts` resolves which
-  key and model to use; `http.ts` holds the visitor hash and the same-origin
-  guard.
+  key and model to use; `visitor.ts` decides who is asking (signed cookie, device
+  id, or address hash) and `http.ts` holds the same-origin guard.
 - `src/worker/routes/appraisals.ts`: create, list, read, delete one and delete
   all. `routes/state.ts` serves `/api/state`; `routes/admin.ts` saves the key and
   the access toggle. `db.ts` owns the schema (created on first request), the
@@ -175,11 +178,12 @@ screen can still point a build at another server at runtime.
 
 ## Security notes
 
-There is no session and no cookie, so there is nothing cross-site to ride on;
-mutations that announce an `Origin` must match the site's own origin or its
-public name (`PUBLIC_ORIGINS` in `src/worker/http.ts`). Queries are
-scoped by the visitor hash, never by an id from the client, and the raw address
-is never stored. The Worker only accepts JPEG/PNG/WebP data URLs under 2 MB,
+There is no sign-in and no session: the only cookie is an anonymous
+HMAC-signed id that keys a visitor's own collection and daily allowance, so
+there is nothing cross-site to ride on. Mutations that announce an `Origin` must
+match the site's own origin or its public name (`PUBLIC_ORIGINS` in
+`src/worker/http.ts`). Queries are scoped by that id, never by an id from the
+client, and no raw address is stored. The Worker only accepts JPEG/PNG/WebP data URLs under 2 MB,
 caps the note at 240 characters, allows one appraisal in flight per visitor, and
 answers with `Cache-Control: private, no-store`. Keys are stored in D1 and only
 ever leave the Worker towards the gateway.

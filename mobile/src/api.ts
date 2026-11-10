@@ -5,6 +5,7 @@ import { DEFAULT_API_BASE } from './config'
 import type { Appraisal, AppraisalSummary, AppState } from './types'
 
 const STORE_KEY = 'mintmark.apiBase'
+const VISITOR_KEY = 'mintmark.visitor'
 const QUERY_RETRY = 1
 
 let apiBase = DEFAULT_API_BASE
@@ -35,6 +36,31 @@ export async function saveApiBase(value: string): Promise<string> {
     /* the value still applies for this session */
   }
   return next
+}
+
+const randomId = () =>
+  Array.from({ length: 8 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join('')
+
+let visitorPromise: Promise<string> | undefined
+
+/**
+ * A stable id for this install. A native build carries no cookie, and behind the
+ * friendly name every request would otherwise arrive from the edge's address
+ * and share one collection and one daily allowance. Kept per device instead.
+ */
+function visitorId(): Promise<string> {
+  visitorPromise ??= (async () => {
+    try {
+      const stored = await AsyncStorage.getItem(VISITOR_KEY)
+      if (stored && /^[0-9a-f]{16}$/.test(stored)) return stored
+      const made = randomId()
+      await AsyncStorage.setItem(VISITOR_KEY, made)
+      return made
+    } catch {
+      return randomId()
+    }
+  })()
+  return visitorPromise
 }
 
 export class ApiError extends Error {
@@ -68,6 +94,7 @@ export async function api<T>(path: string, init: (RequestInit & { json?: unknown
   const base = getApiBase()
   if (!base) throw new ApiError(0, 'No server is configured. Add one on the Admin screen.')
   const { json, ...rest } = init
+  const visitor = await visitorId()
   let response: Response
   try {
     response = await fetch(`${base}/api${path}`, {
@@ -75,6 +102,7 @@ export async function api<T>(path: string, init: (RequestInit & { json?: unknown
       headers: {
         accept: 'application/json',
         ...(json !== undefined ? { 'content-type': 'application/json' } : {}),
+        'x-mintmark-visitor': visitor,
         ...((rest.headers as Record<string, string> | undefined) ?? {}),
       },
       body: json !== undefined ? JSON.stringify(json) : (rest.body as BodyInit | null | undefined),
