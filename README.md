@@ -178,6 +178,19 @@ gh workflow run mintmark-ios.yml -R innotelinc/mintmark
 Builds call the deployed Worker through `MINTMARK_API_URL`; the app's Settings
 screen can still point a build at another server at runtime.
 
+The icon and splash are drawn procedurally by `mobile/scripts/make-icon.mjs`
+(no image dependencies): a struck brass coin with a milled edge and an embossed
+M on ink, lit from the upper left. Rerun it after changing the mark, and keep
+`public/favicon.svg` in step for the web tab.
+
+### Moving the signing secrets between repositories
+
+GitHub never reveals a stored secret, so the Apple values already held in
+`innotelinc/sage` cannot be read out or copied by hand. `scripts/apple-secrets-copy.yml`
+is a one-shot workflow to drop into sage: it reads the six values there and writes
+them into `innotelinc/mintmark` with a fine-grained token, printing only names and
+lengths. See its header for the three setup steps.
+
 ## Security notes
 
 There is no sign-in and no session: the only cookie is an anonymous

@@ -1,5 +1,5 @@
 // Draws the app icon and splash mark into mobile/assets with no image
-// dependencies: a brass coin with a milled edge and an M, on ink.
+// dependencies: a struck brass coin with a milled edge and an embossed M, on ink.
 //
 //   node mobile/scripts/make-icon.mjs
 import { deflateSync } from 'node:zlib'
@@ -48,12 +48,18 @@ const encodePng = (size, rgb) => {
 }
 
 const mix = (a, b, t) => a.map((value, index) => Math.round(value + (b[index] - value) * Math.min(1, Math.max(0, t))))
+const clamp = (v) => (v < 0 ? 0 : v > 255 ? 255 : v)
 
-const INK = [26, 23, 18]
-const BRASS_DARK = [150, 104, 31]
-const BRASS_LIGHT = [240, 210, 150]
-const BRASS_RIM = [122, 90, 32]
-const onCoin = [43, 35, 24]
+const INK = [24, 21, 16]
+const INK_DEEP = [13, 11, 9]
+const BRASS_DARK = [92, 62, 18]
+const BRASS_MID = [205, 165, 84]
+const BRASS_LIGHT = [247, 222, 166]
+const BRASS_RIM = [116, 82, 26]
+const BRASS_SHEEN = [255, 242, 208]
+const LETTER = [40, 32, 21]
+const LETTER_LIT = [255, 238, 198]
+const LETTER_SHADOW = [92, 60, 16]
 
 /** Distance from a point to a segment, for the M's strokes. */
 function segmentDistance(px, py, ax, ay, bx, by) {
@@ -68,41 +74,104 @@ function draw(size) {
   const center = size / 2
   const radius = size * 0.365
   const stroke = size * 0.062
-  const m = [
-    [-0.40, 0.40, -0.40, -0.36],
-    [-0.40, -0.36, 0.0, 0.14],
-    [0.0, 0.14, 0.40, -0.36],
-    [0.40, -0.36, 0.40, 0.40],
+  const emboss = Math.max(1.2, size * 0.0085)
+  // The monogram, in units of the coin radius, centred on the field.
+  const strokes = [
+    [-0.42, 0.42, -0.42, -0.38],
+    [-0.42, -0.38, 0.0, 0.16],
+    [0.0, 0.16, 0.42, -0.38],
+    [0.42, -0.38, 0.42, 0.42],
   ]
+
+  /** How far a point is from the letterform, optionally shifted for an emboss. */
+  const letterDistance = (px, py, shift = 0) => {
+    let nearest = Infinity
+    for (const [ax, ay, bx, by] of strokes) {
+      nearest = Math.min(
+        nearest,
+        segmentDistance(
+          px,
+          py,
+          center + ax * radius + shift,
+          center + ay * radius + shift,
+          center + bx * radius + shift,
+          center + by * radius + shift,
+        ),
+      )
+    }
+    return nearest
+  }
+  // Width of the bevel band around the monogram, and the step used to read the
+  // direction the letterform's edge faces.
+  const bevel = Math.max(2, size * 0.011)
+  const step = Math.max(1, size * 0.004)
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const px = x + 0.5
       const py = y + 0.5
       const distance = Math.hypot(px - center, py - center)
-      let color = INK
+      const angle = Math.atan2(py - center, px - center)
+
+      // Ink board that the coin rests on, darker at the edges.
+      const board = Math.min(1, Math.max(0, distance / (radius * 1.9)))
+      let color = mix(INK, INK_DEEP, board * 0.9)
 
       if (distance <= radius) {
-        // Light from the top left, as if the coin sat on a table.
-        const light = 0.5 + 0.5 * ((center - px) * 0.5 + (center - py) * 0.8) / radius
-        color = mix(BRASS_DARK, BRASS_LIGHT, 0.25 + light * 0.6)
+        const t = distance / radius
+        // Brass lit from the upper left, a little darker towards the rim.
+        const light = 0.5 + 0.5 * ((center - px) * 0.45 + (center - py) * 0.9) / radius
+        color = mix(BRASS_DARK, BRASS_MID, 0.1 + light * 0.6)
+        color = mix(color, BRASS_LIGHT, Math.max(0, light - 0.6) * 1.35)
 
-        const rim = Math.abs(distance - radius * 0.9)
-        if (rim < radius * 0.022) color = mix(color, BRASS_RIM, 0.75)
-        const inner = Math.abs(distance - radius * 0.55)
-        if (inner < radius * 0.012) color = mix(color, BRASS_RIM, 0.45)
+        // Faint concentric strike marks in the field.
+        const rings = Math.sin(distance * 0.42) * 0.9
+        color = color.map((channel) => clamp(channel + rings))
 
-        // Milled edge: notches around the rim.
-        const angle = Math.atan2(py - center, px - center)
-        if (distance > radius * 0.955 && Math.sin(angle * 48) > 0.55) color = mix(color, BRASS_RIM, 0.5)
+        // Recessed inner ring, struck deeper than the field.
+        const inner = Math.abs(distance - radius * 0.78)
+        if (inner < radius * 0.016) color = mix(color, BRASS_RIM, 0.55 * (1 - inner / (radius * 0.016)))
 
-        // The letterform.
-        let nearest = Infinity
-        for (const [ax, ay, bx, by] of m) {
-          nearest = Math.min(nearest, segmentDistance(px, py, center + ax * radius, center + ay * radius, center + bx * radius, center + by * radius))
+        // Milled edge: fine teeth, then a darker collar behind them.
+        if (t > 0.93) {
+          const teeth = 0.5 + 0.5 * Math.sin(angle * 132)
+          color = mix(color, BRASS_RIM, (t - 0.93) * 3.6 * (0.4 + teeth * 0.45))
         }
-        if (nearest < stroke / 2) color = mix(color, onCoin, 0.94)
-        if (distance > radius - 1.5) color = mix(color, INK, 0.6)
+
+        // A specular sheen across the upper left of the field.
+        const sheen = Math.exp(-(((px - center + radius * 0.34) ** 2 + (py - center + radius * 0.42) ** 2) / (radius * radius * 0.10)))
+        color = color.map((channel) => clamp(channel + sheen * 26))
+
+        // Rim highlight on the lit side of the coin.
+        if (t > 0.955) {
+          const lit = Math.max(0, Math.cos(angle - Math.PI * 1.25))
+          color = mix(color, BRASS_SHEEN, lit * 0.32 * (1 - (t - 0.955) / 0.045))
+        }
+
+        // The monogram: struck into the face, lit on its upper-left edge and
+        // shadowed on the lower right, so it reads as relief rather than ink.
+        const facing = letterDistance(px, py) - stroke / 2
+        if (facing < 0) {
+          color = mix(color, LETTER, 0.96)
+          if (facing > -bevel) {
+            // Which way this bit of edge points, from the distance field: the
+            // side facing the light catches it, the far side falls to shadow.
+            const gx = letterDistance(px + step, py) - letterDistance(px - step, py)
+            const gy = letterDistance(px, py + step) - letterDistance(px, py - step)
+            const lit = -(gx * 0.62 + gy * 0.78) / (Math.hypot(gx, gy) || 1)
+            const edge = 1 + facing / bevel
+            color =
+              lit > 0
+                ? mix(color, LETTER_LIT, lit * edge * 0.85)
+                : mix(color, LETTER_SHADOW, -lit * edge * 0.45)
+          }
+        } else if (facing < emboss * 1.4) {
+          // A soft contact shadow on the face, cast towards the lower right.
+          color = mix(color, LETTER_SHADOW, 0.3 * (1 - facing / (emboss * 1.4)))
+        }
+
+        // Keep the coin's outer edge crisp against the board.
+        if (distance > radius - Math.max(1, size * 0.0015)) color = mix(color, INK, 0.55)
       }
 
       const offset = (y * size + x) * 3
@@ -137,15 +206,11 @@ function render(size) {
       out[offset + 2] = Math.round(sum[2] / (scale * scale))
     }
   }
-  return applyMask(out, size)
-}
-
-/** iOS rounds the corners itself; keep the square fully painted. */
-function applyMask(pixels) {
-  return pixels
+  return out
 }
 
 mkdirSync(assets, { recursive: true })
+// iOS rounds the corners itself, so the square stays fully painted.
 writeFileSync(join(assets, 'icon.png'), encodePng(1024, render(1024)))
 writeFileSync(join(assets, 'splash-icon.png'), encodePng(512, render(512)))
 console.log('wrote assets/icon.png (1024) and assets/splash-icon.png (512)')
