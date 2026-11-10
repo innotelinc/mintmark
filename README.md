@@ -87,7 +87,9 @@ Structured output is provider-dependent, so the Worker asks for `json_schema`
 first, retries with `json_object`, and finally sends the prompt alone — the
 reply is validated and clamped either way. An appraisal costs one vision call
 and nothing when the gateway refuses a request; `DAILY_APPRAISAL_LIMIT` of 25
-per visitor per day caps the spend.
+per visitor per day caps the spend, and `DAILY_DEPLOYMENT_LIMIT` (250) is the
+ceiling across everyone — the identity is anonymous, so a client can always earn
+a fresh allowance by clearing its cookie.
 
 ## Deploy to Freebuff Sites
 

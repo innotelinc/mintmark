@@ -78,6 +78,16 @@ export async function appraisalsToday(db: D1Database, owner: string): Promise<nu
   return Number(row?.n ?? 0)
 }
 
+/** Appraisals across every visitor today: the deployment's spend ceiling. */
+export async function appraisalsTodayAll(db: D1Database): Promise<number> {
+  const { start } = utcDay()
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS n FROM appraisals WHERE created_at >= ?`)
+    .bind(start)
+    .first<{ n: number }>()
+  return Number(row?.n ?? 0)
+}
+
 export async function getSetting(db: D1Database, key: string): Promise<string | null> {
   const row = await db.prepare(`SELECT value FROM app_settings WHERE key = ?`).bind(key).first<{ value: string }>()
   return row?.value ?? null

@@ -112,8 +112,14 @@ export const APPRAISAL_SCHEMA = {
   ],
 }
 
-/** Per-user limits. Appraisals are counted per UTC day. */
+/** Per-visitor limits. Appraisals are counted per UTC day. */
 export const DAILY_APPRAISAL_LIMIT = 25
+/**
+ * The deployment's own ceiling for the day, across every visitor. Identity is
+ * anonymous, so a client that clears its cookie or rotates its device id earns a
+ * fresh allowance; this is what stops that from spending without bound.
+ */
+export const DAILY_DEPLOYMENT_LIMIT = 250
 /** Uploaded photo, after the browser has scaled it down. */
 export const MAX_IMAGE_BYTES = 2_000_000
 export const MAX_THUMB_BYTES = 200_000
