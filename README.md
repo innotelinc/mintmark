@@ -89,16 +89,45 @@ per visitor per day caps the spend.
 
 ## Deploy to Freebuff Sites
 
-Live: **https://site-14e683b8ff8e42ea8147b66b91f8a10a.freebuff.page** (published
-preview environment). D1 `DB` and the `MINTMARK_API_KEY` secret are attached to
-it, and the repository variable `MINTMARK_API_URL` in `innotelinc/mintmark`
-points at it, so iOS builds bake in the same origin.
+Live: **https://mint.innotel.tech** (published preview environment). The site's
+own origin remains
+`https://site-14e683b8ff8e42ea8147b66b91f8a10a.freebuff.page`, and the friendly
+name is served through the innotel edge (see below). D1 `DB` and the
+`MINTMARK_API_KEY` secret are attached to the site, and the repository variable
+`MINTMARK_API_URL` in `innotelinc/mintmark` points at the friendly name, so iOS
+builds bake in the same origin.
 
 1. `sites_create`, then `sites_add_storage` for D1 named `DB`.
 2. `npm run build`, then `sites_deploy` with `deploy.json`.
 3. Attach the key with Sites → Secrets (`MINTMARK_API_KEY`), then deploy once
    more: a secret reaches the running Worker only with a new version. Pasting
    the key in `/admin` instead needs no redeploy, because it lives in D1.
+
+### The public name
+
+The managed edge answers its own hostname only and holds no certificate for
+foreign names, so `mint.innotel.tech` is terminated on the innotel edge rather
+than attached to the site:
+
+- `mint.innotel.tech` is a `CNAME` to `innotel.tech` in Technitium, the same
+  shape as `gateway.telno.services`.
+- Nginx Proxy Manager (proxy host 325) holds the Let's Encrypt certificate and
+  forwards to the site origin with `Host` and `proxy_ssl_name` pinned to it. The
+  pinned `Host` has to sit inside `location /`: NPM re-includes
+  `conf.d/include/proxy.conf` there, which sets `Host $host` and wins over a
+  server-level override.
+- The browser therefore announces `https://mint.innotel.tech` while the Worker
+  sees its own origin, so that name is listed in `PUBLIC_ORIGINS` in
+  `src/worker/http.ts`. Changing it needs a rebuild and a deploy; a mutation
+  from an unlisted origin is still refused with 403.
+- Proxied traffic reaches the Worker from the edge's address, so everyone using
+  the friendly name shares one visitor hash and one daily allowance. The site's
+  own origin keeps per-visitor limits.
+
+`scripts/edge/` holds the idempotent scripts for this: `mint-dns.py`
+(Technitium; dry run unless given `--apply`), `mint-npm.py --apply` (certificate
+and proxy host) and `mint-vhost.py` (the `Host` pin — re-run it after editing
+that host in the NPM UI, which rewrites the file).
 
 ## Where things are
 
@@ -147,7 +176,8 @@ screen can still point a build at another server at runtime.
 ## Security notes
 
 There is no session and no cookie, so there is nothing cross-site to ride on;
-mutations that announce an `Origin` must match the site's own origin. Queries are
+mutations that announce an `Origin` must match the site's own origin or its
+public name (`PUBLIC_ORIGINS` in `src/worker/http.ts`). Queries are
 scoped by the visitor hash, never by an id from the client, and the raw address
 is never stored. The Worker only accepts JPEG/PNG/WebP data URLs under 2 MB,
 caps the note at 240 characters, allows one appraisal in flight per visitor, and

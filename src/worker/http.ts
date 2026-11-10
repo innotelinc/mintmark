@@ -35,6 +35,16 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'ionic://localhost', 'http
 const isAppOrigin = (origin: string | undefined): origin is string => Boolean(origin && APP_ORIGINS.has(origin))
 
 /**
+ * Public names this deployment is served under besides its own. The site sits
+ * behind an estate proxy that terminates TLS for the friendly name and forwards
+ * with Host rewritten to the managed edge hostname, so the browser announces
+ * this origin while the Worker sees its own.
+ */
+const PUBLIC_ORIGINS = new Set(['https://mint.innotel.tech'])
+
+const isPublicOrigin = (origin: string | undefined): boolean => Boolean(origin && PUBLIC_ORIGINS.has(origin))
+
+/**
  * The iOS shell is a different origin from the API, so it needs CORS headers to
  * read a reply at all. Only the app's own scheme is ever echoed; preflights are
  * answered here, before the database middleware runs.
@@ -64,7 +74,7 @@ export const sameOrigin: MiddlewareHandler<AppContext> = async (c, next) => {
   const method = c.req.method
   if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return next()
   const origin = c.req.header('origin')
-  if (origin && origin !== new URL(c.req.url).origin && !isAppOrigin(origin)) {
+  if (origin && origin !== new URL(c.req.url).origin && !isAppOrigin(origin) && !isPublicOrigin(origin)) {
     return c.json({ error: 'Cross-origin request refused.' }, 403)
   }
   return next()
