@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 
-import { DAILY_APPRAISAL_LIMIT } from '../../shared/config'
+import { DAILY_APPRAISAL_LIMIT, DAILY_DEPLOYMENT_LIMIT } from '../../shared/config'
 import type { AppState } from '../../shared/types'
-import { appraisalsToday, utcDay } from '../db'
+import { appraisalsToday, appraisalsTodayAll, utcDay } from '../db'
 import type { AppContext } from '../env'
 import { maskKey, readGatewaySettings } from '../gateway'
 import { privateJson } from '../http'
@@ -30,6 +30,10 @@ state.get('/', async (c) => {
       used: await appraisalsToday(db, c.get('visitor')),
       limit: DAILY_APPRAISAL_LIMIT,
       resetsAt: utcDay().end,
+    },
+    deployment: {
+      used: await appraisalsTodayAll(db),
+      limit: DAILY_DEPLOYMENT_LIMIT,
     },
   }
   return privateJson(c, body)

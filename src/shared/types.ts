@@ -70,4 +70,10 @@ export interface AppState {
     keyHint: string | null
   }
   usage: { used: number; limit: number; resetsAt: number }
+  /**
+   * The deployment's own day, across every visitor. Ordinarily private to the
+   * owner, but it is here so the admin panel can show the ceiling before it is
+   * reached; it reveals nothing about anyone's collection.
+   */
+  deployment: { used: number; limit: number }
 }

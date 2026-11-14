@@ -20,7 +20,8 @@ export function Admin() {
   const [draft, setDraft] = useState('')
 
   if (!state) return null
-  const { gateway, capabilities } = state
+  const { gateway, capabilities, usage, deployment } = state
+  const spent = deployment.limit > 0 ? Math.min(100, Math.round((deployment.used / deployment.limit) * 100)) : 0
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -107,6 +108,33 @@ export function Admin() {
         </section>
 
         <section className="mt-8">
+          <h2 className="label-caps">Today</h2>
+          <div className="mt-3 rounded-card border border-line bg-surface p-4 shadow-card">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <p className="text-[13.5px] font-medium">Gateway appraisals, everyone</p>
+              <p className="font-mono text-[12.5px] text-muted">
+                {deployment.used.toLocaleString()} / {deployment.limit.toLocaleString()}
+              </p>
+            </div>
+            <div
+              className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={deployment.limit}
+              aria-valuenow={deployment.used}
+              aria-label="Today's appraisals across every visitor"
+            >
+              <div className={cx('h-full rounded-full', spent >= 90 ? 'bg-danger' : 'bg-accent')} style={{ width: `${spent}%` }} />
+            </div>
+            <p className="mt-2.5 text-[12px] leading-relaxed text-faint">
+              At the ceiling the app refuses appraisals instead of spending another call. Each visitor gets {usage.limit} a day, but a
+              visitor is only a cookie, so clearing it earns a fresh allowance — this deployment cap is what actually bounds the bill. Resets
+              in {resetsIn(usage.resetsAt)}.
+            </p>
+          </div>
+        </section>
+
+        <section className="mt-8">
           <h2 className="label-caps">Access</h2>
           <div className="mt-3 flex items-start gap-4 rounded-card border border-line bg-surface p-4 shadow-card">
             <div className="min-w-0 flex-1">
@@ -151,6 +179,13 @@ export function Admin() {
       </div>
     </div>
   )
+}
+
+function resetsIn(at: number): string {
+  const minutes = Math.max(0, Math.round((at - Date.now()) / 60_000))
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  return `${hours} h ${minutes % 60} min`
 }
 
 function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (value: boolean) => void; label: string; disabled?: boolean }) {
