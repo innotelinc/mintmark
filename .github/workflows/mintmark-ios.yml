@@ -131,6 +131,30 @@ jobs:
             echo "::error::no ios/Podfile — expo prebuild did not produce a CocoaPods project"; exit 1
           fi
 
+      # expo prebuild names the Xcode project after app.json's name, so nothing
+      # here may assume it. Hard-coding "App" is why the first run failed with
+      # "ios/App.xcworkspace does not exist" before compiling a single line.
+      - name: Resolve the Xcode workspace and scheme
+        run: |
+          set -euo pipefail
+          WORKSPACE=$(ls -d ios/*.xcworkspace 2>/dev/null | head -1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "::error::expo prebuild produced no .xcworkspace under ios/"
+            ls ios || true
+            exit 1
+          fi
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" -json 2>/dev/null \
+            | python3 -c 'import json,sys; d=json.load(sys.stdin); print(((d.get("workspace") or d.get("project") or {}).get("schemes") or [""])[0])' \
+            2>/dev/null || true)
+          if [ -z "$SCHEME" ]; then
+            SCHEME=$(basename "$(ls -d ios/*.xcodeproj | head -1)" .xcodeproj)
+            echo "scheme list unavailable, falling back to the project name: $SCHEME"
+          fi
+          echo "workspace $WORKSPACE, scheme $SCHEME"
+          xcodebuild -list -workspace "$WORKSPACE" 2>/dev/null | sed -n '/Schemes:/,/^$/p' || true
+          echo "WORKSPACE=$WORKSPACE" >> "$GITHUB_ENV"
+          echo "SCHEME=$SCHEME" >> "$GITHUB_ENV"
+
       - name: Archive
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -140,8 +164,8 @@ jobs:
           set -euo pipefail
           if [ -z "$APPLE_TEAM_ID" ]; then echo "::error::APPLE_TEAM_ID secret is missing"; exit 1; fi
           xcodebuild \
-            -workspace ios/App.xcworkspace \
-            -scheme App \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
@@ -162,8 +186,9 @@ jobs:
       - name: Verify the app bundle
         run: |
           set -euo pipefail
-          APP=build/Mintmark.xcarchive/Products/Applications/App.app
-          test -d "$APP"
+          APP=$(ls -d build/Mintmark.xcarchive/Products/Applications/*.app | head -1)
+          test -d "$APP" || { echo "::error::the archive contains no .app"; ls build/Mintmark.xcarchive/Products/Applications || true; exit 1; }
+          echo "app bundle: $APP"
           ICONS=$(ls -1 "$APP" | grep -ci '^AppIcon' || true)
           echo "compiled app icon resources: $ICONS"
           test "$ICONS" -ge 1 || { echo "::error::no AppIcon resources were compiled into the app"; exit 1; }
