@@ -13,6 +13,10 @@ export function Settings({ onOpenAdmin }: { onOpenAdmin: () => void }) {
 
   const limit = state?.usage.limit || DAILY_APPRAISAL_LIMIT
   const used = state?.usage.used ?? 0
+  // Your allowance is per device and is only a cookie away from being reset, so
+  // the server's own ceiling is the number that actually bounds the bill.
+  const deployment = state?.deployment
+  const serverShare = deployment && deployment.limit > 0 ? Math.min(100, Math.round((deployment.used / deployment.limit) * 100)) : 0
   const keyDetail =
     state?.gateway.keySource === 'stored'
       ? `Key stored in the app · ${state.gateway.keyHint ?? ''}`
@@ -43,6 +47,25 @@ export function Settings({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           <View style={[styles.trackFill, { width: `${Math.min(100, Math.round((used / limit) * 100))}%` }]} />
         </View>
         <Text style={styles.usageNote}>Each appraisal sends one photo through the gateway and is billed to the Mintmark key&apos;s owner.</Text>
+
+        {deployment && (
+          <View style={styles.deployment}>
+            <View style={styles.usageHead}>
+              <Text style={styles.deploymentTitle}>Everyone on this server</Text>
+              <Text style={styles.usageReset}>
+                {deployment.used} of {deployment.limit}
+              </Text>
+            </View>
+            <View style={styles.track}>
+              <View
+                style={[styles.trackFill, { width: `${serverShare}%` }, serverShare >= 90 && { backgroundColor: colors.danger }]}
+              />
+            </View>
+            <Text style={styles.deploymentNote}>
+              One daily ceiling for the whole server. When it is reached, appraisals stop for everyone here until the day resets.
+            </Text>
+          </View>
+        )}
       </Card>
 
       <Text style={styles.sectionLabel}>ADMIN</Text>
@@ -110,6 +133,9 @@ const styles = StyleSheet.create({
   track: { backgroundColor: colors.surface2, borderRadius: 3, height: 6, marginTop: 12, overflow: 'hidden' },
   trackFill: { backgroundColor: colors.accent, height: 6 },
   usageNote: { color: colors.faint, fontSize: 12, lineHeight: 17, marginTop: 12 },
+  deployment: { borderTopColor: colors.line, borderTopWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingTop: 12 },
+  deploymentTitle: { color: colors.fg, flex: 1, fontSize: 13.5, fontWeight: '600' },
+  deploymentNote: { color: colors.faint, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, ...shadow.card },
   rowIcon: { alignItems: 'center', backgroundColor: colors.surface2, borderRadius: radius.tile, height: 36, justifyContent: 'center', width: 36 },
   rowTitle: { color: colors.fg, fontSize: 13.5, fontWeight: '600' },

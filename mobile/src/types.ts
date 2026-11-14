@@ -60,4 +60,6 @@ export interface AppState {
     keyHint: string | null
   }
   usage: { used: number; limit: number; resetsAt: number }
+  /** The server's own day, across every visitor. Absent on an older server. */
+  deployment?: { used: number; limit: number }
 }
