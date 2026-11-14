@@ -32,9 +32,13 @@ another one.
    Platform **iOS**, name **Mintmark**, bundle ID **us.inotel.mintmark** (register
    it first under Certificates, Identifiers & Profiles → Identifiers if it is not
    listed), SKU `mintmark`. The upload is rejected without this record.
-2. **API key.** Users and Access → Integrations → App Store Connect API → **+**,
-   name `mintmark-ci`, role **App Manager**. Copy the **Key ID** and **Issuer
-   ID** and download `AuthKey_XXXXXXXXXX.p8` (only downloadable once).
+2. **API key.** Users and Access → Integrations → App Store Connect API → **+**
+   (a **Team Key**, not an individual one — individual keys cannot use the
+   provisioning endpoints). Name it `mintmark-ci` and give it the **Admin**
+   role: only the Account Holder and Admin can create a distribution
+   certificate, so an App Manager key authenticates but fails at the archive.
+   Copy the **Issuer ID** from above the table, note the **Key ID** in the row,
+   and click **Download API Key** — it cannot be downloaded twice.
 3. **Team ID.** Apple Developer → Membership → Team ID (10 characters).
 
 That is all the Apple setup: the API key signs the archive and the upload. Xcode
