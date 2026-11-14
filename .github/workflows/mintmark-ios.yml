@@ -4,14 +4,19 @@ name: Mintmark iOS TestFlight
 # the build runs on a GitHub macOS runner and uploads itself. The app is the
 # native Expo client in mobile/.
 #
-# Signing reuses the estate's App Store Connect credentials, the same names used
-# for Sage:
-#   APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY  (API key: signing + upload)
-#   IOS_DIST_P12, IOS_DIST_P12_PASSWORD                        (the distribution identity)
+# Signing needs four secrets and no certificate file:
+#   APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY
 #
-# The certificate is imported into a throwaway keychain so every run signs with
-# the same identity. Letting Xcode mint one per run is what fills the team's
-# certificate cap and then fails with "Choose a certificate to revoke".
+# The App Store Connect API key *is* the signing credential. With
+# CODE_SIGN_STYLE=Automatic and -allowProvisioningUpdates, xcodebuild asks the
+# developer portal for a distribution certificate and an App Store profile,
+# creating them on the first run and reusing them after that. The private key for
+# that certificate is generated on the runner and never leaves it, so nothing has
+# to be exported as a .p12 or carried between repositories.
+#
+# The certificate cap only bites if a run mints a fresh certificate every time;
+# innotelinc/sage's ios-cert-cleanup.yml exists to revoke the leftovers if that
+# ever starts happening.
 #
 # Repository variable:
 #   MINTMARK_API_URL  the deployed Worker origin, e.g. https://mintmark.example.workers.dev
@@ -77,41 +82,37 @@ jobs:
             echo "the app will call $API_URL"
           fi
 
-      - name: Install ASC API key
+      - name: Install the App Store Connect API key
         env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_PRIVATE_KEY" ]; then
-            echo "::error::ASC_KEY_ID / ASC_PRIVATE_KEY secrets are missing"; exit 1
+          missing=""
+          for name in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::$name is not set in this repository"
+              missing=1
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::signing needs these four secrets: APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_PRIVATE_KEY"
+            exit 1
           fi
-          mkdir -p ~/.appstoreconnect/private_keys
-          printf '%s' "$ASC_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
-
-      - name: Import the distribution certificate
-        env:
-          IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
-          IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [ -z "$IOS_DIST_P12" ] || [ -z "$IOS_DIST_P12_PASSWORD" ]; then
-            echo "::error::IOS_DIST_P12 / IOS_DIST_P12_PASSWORD secrets are missing"; exit 1
+          KEY="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          mkdir -p "$(dirname "$KEY")"
+          printf '%s' "$ASC_PRIVATE_KEY" > "$KEY"
+          chmod 600 "$KEY"
+          # A .p8 that will not parse is a truncated paste, not an Apple problem;
+          # catching it here beats a cryptic portal error after the pod install.
+          if ! openssl ec -in "$KEY" -noout -text > /dev/null 2>&1; then
+            echo "::error::ASC_PRIVATE_KEY is not a valid .p8 (it must be the whole EC PRIVATE KEY block from App Store Connect)"
+            exit 1
           fi
-          KEYCHAIN="$RUNNER_TEMP/mintmark-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(uuidgen)"
-          printf '%s' "$IOS_DIST_P12" | base64 -D > "$RUNNER_TEMP/distribution.p12"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security set-keychain-settings -lut 3600 "$KEYCHAIN"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security import "$RUNNER_TEMP/distribution.p12" -k "$KEYCHAIN" -P "$IOS_DIST_P12_PASSWORD" \
-            -T /usr/bin/codesign -T /usr/bin/security
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
-          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
-          rm -f "$RUNNER_TEMP/distribution.p12"
-          echo "=== signing identities available to this run:"
-          security find-identity -v -p codesigning "$KEYCHAIN"
+          echo "key $ASC_KEY_ID for team $APPLE_TEAM_ID is installed and parses as an EC private key"
+          echo "xcodebuild will ask the portal for a distribution certificate and profile"
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -167,6 +168,14 @@ jobs:
           echo "compiled app icon resources: $ICONS"
           test "$ICONS" -ge 1 || { echo "::error::no AppIcon resources were compiled into the app"; exit 1; }
           test -f "$APP/Assets.car"
+          # Automatic signing can quietly settle for a development identity, and
+          # Apple only rejects that after the whole upload, so assert it here.
+          codesign -dv --verbose=2 "$APP" 2>&1 | grep -q 'Authority=Apple Distribution' || {
+            echo "::error::the app is not signed by an Apple Distribution identity"
+            codesign -dv --verbose=2 "$APP" 2>&1 | head -12
+            exit 1
+          }
+          echo "signed by the distribution identity"
           test -f "$APP/main.jsbundle" || { echo "::error::the JavaScript bundle did not reach the app"; exit 1; }
           BUNDLE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
           echo "bundle $BUNDLE $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist") ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist"))"

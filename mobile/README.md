@@ -35,23 +35,22 @@ another one.
 2. **API key.** Users and Access → Integrations → App Store Connect API → **+**,
    name `mintmark-ci`, role **App Manager**. Copy the **Key ID** and **Issuer
    ID** and download `AuthKey_XXXXXXXXXX.p8` (only downloadable once).
-3. **Distribution certificate.** Export the team's Apple Distribution
-   certificate and key from Keychain Access as a password-protected `.p12`, then
-   `base64` it. The workflow imports it into a throwaway keychain; because it
-   reuses one identity, runs never consume the team's certificate limit.
-4. **Team ID.** Apple Developer → Membership → Team ID (10 characters).
+3. **Team ID.** Apple Developer → Membership → Team ID (10 characters).
+
+That is all the Apple setup: the API key signs the archive and the upload. Xcode
+generates the distribution certificate and the App Store profile on the runner
+from the key, so there is no certificate to export, password to remember, or
+`.p12` to carry between repositories.
 
 ### 2. Add the secrets and the API origin to the repository
 
 The same names the estate already uses for Sage:
 
 ```sh
-gh secret set APPLE_TEAM_ID        --body "TEAMID"
-gh secret set ASC_KEY_ID           --body "KEYID"
-gh secret set ASC_ISSUER_ID        --body "ISSUER-UUID"
-gh secret set ASC_PRIVATE_KEY      < AuthKey_XXXXXXXXXX.p8
-gh secret set IOS_DIST_P12         < distribution.p12.base64
-gh secret set IOS_DIST_P12_PASSWORD --body "P12-PASSWORD"
+gh secret set APPLE_TEAM_ID     --body "TEAMID"
+gh secret set ASC_KEY_ID        --body "KEYID"
+gh secret set ASC_ISSUER_ID     --body "ISSUER-UUID"
+gh secret set ASC_PRIVATE_KEY   < AuthKey_XXXXXXXXXX.p8
 
 gh variable set MINTMARK_API_URL --body "https://your-worker.workers.dev"
 ```
@@ -81,12 +80,14 @@ days.
 ### What the workflow does
 
 `expo prebuild` writes `ios/` from `app.json` (bundle id, permissions, icon),
-`pod install` resolves the native modules, `xcodebuild archive` signs with the
-imported identity plus automatic provisioning, `-exportArchive` produces the
-`.ipa`, and `altool --upload-app` uploads it. Before exporting, it checks the
-built bundle for the icon, the JS bundle, the camera permission and the baked
-API origin, so a broken build fails in minutes instead of being rejected by
-Apple after upload.
+`pod install` resolves the native modules, `xcodebuild archive` signs through the
+API key (automatic signing: the portal hands back a distribution certificate and
+profile, which the run reuses next time), `-exportArchive` produces the `.ipa`,
+and `altool --upload-app` uploads it. The key is checked to parse as an EC
+private key before the build starts, and the finished bundle is checked for the
+icon, the JS bundle, the camera permission, the baked API origin and an **Apple
+Distribution** signature, so a build that Apple would reject fails in minutes
+instead of after a long upload.
 
 ## Where things are
 
