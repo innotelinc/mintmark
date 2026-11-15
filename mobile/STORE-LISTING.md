@@ -239,6 +239,8 @@ to 25 appraisals a day.
 | 1024×1024 icon | `mobile/assets/icon.png` — 1024×1024, RGB, no alpha channel, ready |
 | iPhone Dynamic Island (medium) `1206×2622` | **live** — 4 images, set `APP_IPHONE_61` `11d86964-5dc5-41ad-8b87-2b4b10641636` |
 | iPhone Dynamic Island (large) `1320×2868` | **live** — 4 images, set `APP_IPHONE_67` `618f19e0-5388-4f50-9b5f-6f9b72d9dd04` |
+| Header art `1206×2622` / `1320×2868` | `mobile/store-art/header-*.png` — composed product-page opener, ready, not uploaded |
+| Search-results art `1206×2622` / `1320×2868` | `mobile/store-art/search-results-*.png` — composed first-position image, ready, not uploaded |
 | iPhone with Face ID (large) `1284×2778` | not needed once the large Dynamic Island set exists |
 | App preview video | not needed |
 
