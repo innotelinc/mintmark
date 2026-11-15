@@ -23,8 +23,20 @@ Already pushed into App Store Connect through the API, and readable back from it
 | Age rating | every category answered "None" via the API |
 | Categories | Reference (primary), Utilities (secondary) |
 
-Submission is refused until the **App Privacy questionnaire** is answered, which is
-web-UI only. The screenshots it also wanted are uploaded and processed.
+Submission is refused for exactly one remaining reason: **App Privacy answers are not
+published** (`STATE_ERROR.APP_DATA_USAGES_REQUIRED`, "You must have published answers
+to your app's data usages"). The questionnaire is web-UI only, and saving the answers
+is not enough — the section has to be published. Everything else submission asks for
+is now set through the API:
+
+| Requirement | Value |
+| --- | --- |
+| App content rights | `DOES_NOT_USE_THIRD_PARTY_CONTENT` — the app shows only the user's own photos |
+| Copyright | `2026 Denovo Credit Corporation` |
+| Price | Free, schedule `6834939837`, automatic prices worldwide |
+| Review contact | Innotel Labs, `support@innotel.us`, +1 774-505-7137, no demo account |
+
+The screenshots are uploaded and processed in both slots.
 
 ## Basics
 
@@ -237,11 +249,16 @@ its value range, and settings.
 
 ## Still to do before submitting
 
-1. Fill in App Privacy → Data Types in the web UI using the table above; the API
-   does not expose it.
-2. Delete the two empty review-submission drafts the API attempts left behind
-   (Version page → the submission panel), which cannot be deleted through the API
-   in `READY_FOR_REVIEW`.
+1. **Publish** App Privacy → Data Types using the table above. The API neither reads
+   nor writes it, so the submission below is the only way to test it: three attempts
+   came back with the same "published answers" error while the answers were saved.
+2. Delete the two empty review-submission drafts (Version page → the submission
+   panel). `DELETE` is not an allowed operation on `reviewSubmissions` at all — the
+   API answers 403 `FORBIDDEN_ERROR` for every state, so this is web-UI only.
+
+Once App Privacy is published, submitting is one API call: `PATCH
+/v1/reviewSubmissions/{id}` with `submitted: true`, after attaching the version to one
+of the existing drafts with `POST /v1/reviewSubmissionItems`.
 
 The privacy policy and support pages are published, so those two URLs can be
 pasted into App Store Connect as they are.
