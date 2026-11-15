@@ -23,9 +23,8 @@ Already pushed into App Store Connect through the API, and readable back from it
 | Age rating | every category answered "None" via the API |
 | Categories | Reference (primary), Utilities (secondary) |
 
-Submission is refused until two things exist that no API can supply: **screenshots**
-(`appScreenshotSets` is empty) and the **App Privacy questionnaire**, which is
-web-UI only.
+Submission is refused until the **App Privacy questionnaire** is answered, which is
+web-UI only. The screenshots it also wanted are uploaded and processed.
 
 ## Basics
 
@@ -222,25 +221,25 @@ to 25 appraisals a day.
 | Asset | Status |
 | --- | --- |
 | 1024×1024 icon | `mobile/assets/icon.png` — 1024×1024, RGB, no alpha channel, ready |
-| iPhone Dynamic Island (medium) `1206×2622` | **missing** — the required set |
-| iPhone Dynamic Island (large) `1320×2868` | **missing** — optional, but supplying it removes the 6.5" requirement |
+| iPhone Dynamic Island (medium) `1206×2622` | **live** — 4 images, set `APP_IPHONE_61` `11d86964-5dc5-41ad-8b87-2b4b10641636` |
+| iPhone Dynamic Island (large) `1320×2868` | **live** — 4 images, set `APP_IPHONE_67` `618f19e0-5388-4f50-9b5f-6f9b72d9dd04` |
 | iPhone with Face ID (large) `1284×2778` | not needed once the large Dynamic Island set exists |
 | App preview video | not needed |
 
-`mobile/SCREENSHOTS.md` is the capture guide: the four screens to shoot, what has
-to be on each, the clean status-bar command and the exact sizes.
+The images are committed in `mobile/screenshots/out/` and were produced by
+`.github/workflows/mintmark-screenshots.yml`, which builds the app for the simulator
+and photographs four screens at each size; `mobile/screenshots/README.md` explains
+how a run works. `mobile/SCREENSHOTS.md` is the by-hand equivalent: which screens
+matter, what belongs on each, and the clean status-bar command.
 
-Screenshots to take, in order: the capture screen with a coin in frame, an
-appraisal showing the value card and the grade scale, the drivers and red flags
-section, and the collection list.
+In order on the product page: the capture screen, the collection, an appraisal with
+its value range, and settings.
 
 ## Still to do before submitting
 
-1. Take and upload the two screenshot sets (the only hard blocker left) —
-   `mobile/SCREENSHOTS.md` walks through it.
-2. Fill in App Privacy → Data Types in the web UI using the table above; the API
+1. Fill in App Privacy → Data Types in the web UI using the table above; the API
    does not expose it.
-3. Delete the two empty review-submission drafts the API attempts left behind
+2. Delete the two empty review-submission drafts the API attempts left behind
    (Version page → the submission panel), which cannot be deleted through the API
    in `READY_FOR_REVIEW`.
 
