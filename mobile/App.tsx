@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Linking, NativeModules, Pressable, StyleSheet, Text, View } from 'react-native'
+import { File, Paths } from 'expo-file-system'
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { getApiBase, loadApiBase } from './src/api'
@@ -24,25 +25,44 @@ const client = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTim
  * build that ships: EXPO_PUBLIC_MINTMARK_CAPTURE is only set by the workflow.
  */
 const CAPTURE_MODE = process.env.EXPO_PUBLIC_MINTMARK_CAPTURE === '1'
+const CAPTURE_FILE = 'capture-screen.json'
 
 /**
- * `xcrun simctl launch <udid> us.inotel.mintmark -MMScreen collection` puts that
- * pair in the app's defaults, which is the only way to start the app on a chosen
- * screen without a person tapping and without iOS asking "Open in Mintmark?".
- * Absent in every normal launch, so the app opens where it always does.
+ * A build made for App Store screenshots follows a small file in its own Documents
+ * folder, which the screenshot workflow writes on the simulator's disk. That is the
+ * only channel that needs no person tapping: the URL scheme puts an "Open in
+ * Mintmark?" dialog over the app, and a relaunch does not reliably carry launch
+ * arguments. Absent in every shipping build.
  */
-function launchArguments(): { screen?: string; appraisal?: string } {
-  try {
-    const defaults = NativeModules.SettingsManager?.settings
-    const screen = defaults?.MMScreen
-    const appraisal = defaults?.MMAppraisal
-    return {
-      screen: typeof screen === 'string' ? screen : undefined,
-      appraisal: typeof appraisal === 'string' ? appraisal : undefined,
+function useCaptureScript(apply: (stack: Route[]) => void) {
+  useEffect(() => {
+    if (!CAPTURE_MODE) return
+    let stopped = false
+    let last = ''
+    const poll = async () => {
+      try {
+        const file = new File(Paths.document, CAPTURE_FILE)
+        if (!file.exists) return
+        const text = await file.text()
+        if (stopped || text === last) return
+        const spec = JSON.parse(text) as { screen?: string; appraisal?: string }
+        last = text
+        if (spec.screen === 'capture' || spec.screen === 'collection' || spec.screen === 'settings') {
+          apply([{ name: spec.screen }])
+        } else if (spec.screen === 'appraisal' && spec.appraisal) {
+          apply([{ name: 'capture' }, { name: 'appraisal', id: spec.appraisal }])
+        }
+      } catch {
+        // Absent until the workflow writes it, and possibly caught mid-write.
+      }
     }
-  } catch {
-    return {}
-  }
+    void poll()
+    const timer = setInterval(() => void poll(), 1_000)
+    return () => {
+      stopped = true
+      clearInterval(timer)
+    }
+  }, [apply])
 }
 
 type Tab = 'capture' | 'collection' | 'settings'
@@ -89,32 +109,13 @@ export default function App() {
 }
 
 function Root() {
-  const [stack, setStack] = useState<Route[]>(() => {
-    const { screen, appraisal } = launchArguments()
-    if (screen === 'collection' || screen === 'settings' || screen === 'capture') return [{ name: screen }]
-    if (screen === 'appraisal' && appraisal) return [{ name: 'capture' }, { name: 'appraisal', id: appraisal }]
-    return [{ name: 'capture' }]
-  })
+  const [stack, setStack] = useState<Route[]>([{ name: 'capture' }])
+  useCaptureScript(setStack)
   const top = stack[stack.length - 1]
   const push = (route: Route) => setStack((current) => [...current, route])
   const back = () => setStack((current) => (current.length > 1 ? current.slice(0, -1) : current))
   const tab = (name: Tab) => setStack([{ name }])
   const showTabs = top.name === 'capture' || top.name === 'collection' || top.name === 'settings'
-
-  // Fallback for a capture build launched without arguments: walk the screens so
-  // a plain `simctl launch` still produces more than one image. A headless
-  // simulator coalesces these timers, which is why the workflow passes the screen
-  // in as a launch argument instead.
-  useEffect(() => {
-    if (!CAPTURE_MODE || launchArguments().screen) return
-    const chapters: Route[][] = [
-      [{ name: 'capture' }],
-      [{ name: 'collection' }],
-      [{ name: 'settings' }],
-    ]
-    const timers = chapters.map((next, index) => setTimeout(() => setStack(next), index * 20_000))
-    return () => timers.forEach(clearTimeout)
-  }, [])
 
   // The scheme in app.json makes these addresses open the app at a route, which
   // is how a simulator (or a link in a message) can jump straight to a screen:

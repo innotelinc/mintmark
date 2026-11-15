@@ -128,43 +128,28 @@ jobs:
             xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged \
               --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
             xcrun simctl install "$udid" "$APP"
-            # One relaunch per screen: launch arguments reach the app as defaults,
-            # which needs no tapping and raises no "Open in Mintmark?" dialog.
-            # launch is refused outright if it lands while the last shutdown is
-            # still settling, so it is retried and never silenced.
-            stop_app() {
-              xcrun simctl terminate "$udid" "$BUNDLE_ID" 2>/dev/null || true
-              for _ in $(seq 1 24); do
-                xcrun simctl spawn "$udid" launchctl list 2>/dev/null \
-                  | grep -q "UIKitApplication:$BUNDLE_ID" || return 0
-                sleep 0.5
-              done
-              echo "app still running after terminate"
+            # One launch for all four shots. The capture build watches
+            # Documents/capture-screen.json and switches to whatever it names, so the
+            # screen changes without a tap, without the URL scheme's "Open in
+            # Mintmark?" dialog, and without a relaunch to go wrong.
+            CONTAINER=$(xcrun simctl get_app_container "$udid" "$BUNDLE_ID" data)
+            mkdir -p "$CONTAINER/Documents"
+            ask() { # $1 = screen, $2 = seconds to settle
+              printf '{"screen":"%s","appraisal":"%s"}' "$1" "${2:-}" \
+                > "$CONTAINER/Documents/capture-screen.json"
+              sleep 4
             }
-            # A launch that lands while the app is still alive is answered by
-            # foregrounding it, and the arguments are then ignored. Terminate and
-            # wait for it to be gone first, then shoot; if the frame is identical
-            # to the previous one the screen did not change, so do it again.
-            open() { # $1 = screenshot name, rest = launch arguments
-              local name="$1"; shift
-              local file="$OUT/$slot-$name.png" attempt
-              for attempt in 1 2 3; do
-                stop_app
-                if ! xcrun simctl launch "$udid" "$BUNDLE_ID" "$@"; then
-                  sleep 3; continue
-                fi
-                sleep 7
-                shot "$udid" "$file"
-                if [ "$attempt" = 1 ] || [ ! -f "$OUT/$slot-1-capture.png" ]; then return 0; fi
-                if [ "$(md5 -q "$file")" != "$(md5 -q "$OUT/$slot-1-capture.png")" ] || [ "$name" = 1-capture ]; then return 0; fi
-                echo "$name looks like the first screen, retrying"
-                sleep 3
-              done
-            }
-            open 1-capture -MMScreen capture
-            open 2-collection -MMScreen collection
-            open 3-appraisal -MMScreen appraisal -MMAppraisal "$TARGET"
-            open 4-settings -MMScreen settings
+            xcrun simctl launch "$udid" "$BUNDLE_ID"
+            sleep 8
+            ask capture
+            shot "$udid" "$OUT/$slot-1-capture.png"
+            ask collection
+            shot "$udid" "$OUT/$slot-2-collection.png"
+            ask appraisal "$TARGET"
+            shot "$udid" "$OUT/$slot-3-appraisal.png"
+            ask settings
+            shot "$udid" "$OUT/$slot-4-settings.png"
+            xcrun simctl terminate "$udid" "$BUNDLE_ID" 2>/dev/null || true
             xcrun simctl shutdown "$udid" || true
           done < devices.txt
 
