@@ -34,7 +34,7 @@ is now set through the API:
 | App content rights | `DOES_NOT_USE_THIRD_PARTY_CONTENT` — the app shows only the user's own photos |
 | Copyright | `2026 Denovo Credit Corporation` |
 | Price | Free, schedule `6834939837`, automatic prices worldwide |
-| Review contact | Innotel Labs, `support@innotel.us`, +1 774-505-7137, no demo account |
+| Review contact | Innotel Labs, `support@innotel.us`, +1 774-505-7135, no demo account |
 
 The screenshots are uploaded and processed in both slots.
 
