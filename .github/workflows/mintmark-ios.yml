@@ -202,14 +202,16 @@ jobs:
           echo "compiled app icon resources: $ICONS"
           test "$ICONS" -ge 1 || { echo "::error::no AppIcon resources were compiled into the app"; exit 1; }
           test -f "$APP/Assets.car"
-          # Automatic signing can quietly settle for a development identity, and
-          # Apple only rejects that after the whole upload, so assert it here.
-          codesign -dv --verbose=2 "$APP" 2>&1 | grep -q 'Authority=Apple Distribution' || {
-            echo "::error::the app is not signed by an Apple Distribution identity"
+          # An archive is signed by whatever identity the portal hands back — in
+          # practice an Apple Development one — and -exportArchive re-signs it for
+          # distribution. So this checks that a signature exists at all; the
+          # distribution assertion belongs on the exported .ipa.
+          codesign -dv --verbose=2 "$APP" 2>&1 | grep -q '^Authority=' || {
+            echo "::error::the archived app carries no code signature"
             codesign -dv --verbose=2 "$APP" 2>&1 | head -12
             exit 1
           }
-          echo "signed by the distribution identity"
+          echo "archive signature: $(codesign -dv --verbose=2 "$APP" 2>&1 | grep -m1 '^Authority=')"
           test -f "$APP/main.jsbundle" || { echo "::error::the JavaScript bundle did not reach the app"; exit 1; }
           BUNDLE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
           echo "bundle $BUNDLE $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist") ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist"))"
@@ -255,6 +257,25 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
           ls -lh build/ipa
+
+          # This is the build Apple receives, so assert what Apple demands of it:
+          # a distribution identity and a profile that is not a development one.
+          IPA=$(ls build/ipa/*.ipa | head -1)
+          rm -rf "$RUNNER_TEMP/ipa-check"
+          mkdir -p "$RUNNER_TEMP/ipa-check"
+          unzip -q "$IPA" -d "$RUNNER_TEMP/ipa-check"
+          SHIPPED=$(ls -d "$RUNNER_TEMP"/ipa-check/Payload/*.app | head -1)
+          echo "exported app: $SHIPPED"
+          codesign -dv --verbose=2 "$SHIPPED" 2>&1 | grep -E '^(Authority|TeamIdentifier)=' || true
+          codesign -dv --verbose=2 "$SHIPPED" 2>&1 | grep -qE 'Authority=(Apple Distribution|iPhone Distribution)' || {
+            echo "::error::the exported .ipa is not signed by a distribution identity"
+            exit 1
+          }
+          test -f "$SHIPPED/embedded.mobileprovision" || { echo "::error::the .ipa has no embedded provisioning profile"; exit 1; }
+          PROFILE=$(security cms -D -i "$SHIPPED/embedded.mobileprovision" 2>/dev/null)
+          echo "$PROFILE" | grep -q 'get-task-allow' && echo "::warning::the profile allows debugging (get-task-allow)" || true
+          echo "$PROFILE" | grep -q 'ProvisionsAllDevices' && { echo "::error::an enterprise profile was exported, not an App Store one"; exit 1; } || true
+          echo "exported .ipa is distribution signed with an embedded profile"
 
       - name: Upload to TestFlight
         if: ${{ github.event_name == 'push' || inputs.upload }}
