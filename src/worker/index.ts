@@ -21,6 +21,12 @@ api.route('/admin', admin)
 api.route('/appraisals', appraisals)
 app.route('/api', api)
 
+// The App Store listing hands reviewers these two URLs, so they answer with a
+// real document rather than the app shell: no JavaScript, nothing to load.
+for (const page of ['privacy', 'support'] as const) {
+  app.get(`/${page}`, (c) => c.env.ASSETS.fetch(new URL(`/${page}.html`, c.req.url).toString()))
+}
+
 app.onError((error, c) => {
   console.error(error)
   return c.json({ error: 'Something went wrong.' }, 500)

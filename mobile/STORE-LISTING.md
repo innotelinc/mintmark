@@ -95,12 +95,14 @@ release.
 
 | Field | Value | Status |
 | --- | --- | --- |
-| Support URL | `https://mint.innotel.tech/support` | **missing** — see below |
+| Support URL | `https://mint.innotel.tech/support` | live |
 | Marketing URL | `https://mint.innotel.tech` | live |
-| Privacy Policy URL | `https://mint.innotel.tech/privacy` | **missing** — policy drafted below |
+| Privacy Policy URL | `https://mint.innotel.tech/privacy` | live |
 
-Support and privacy URLs are mandatory to submit; a 404 in either is a common
-rejection.
+Both pages are static documents served by the Worker (`public/privacy.html` and
+`public/support.html`, routed at `/privacy` and `/support`): no JavaScript, so a
+reviewer on a locked-down device still sees them. A 404 in either URL is a common
+rejection, which is why they are plain HTML rather than app routes.
 
 ## App Privacy — the nutrition label
 
@@ -210,8 +212,9 @@ section, and the collection list.
 
 ## Still to do before submitting
 
-1. Publish the privacy policy above at `https://mint.innotel.tech/privacy`.
-2. Publish a short support page at `https://mint.innotel.tech/support`.
-3. Take and upload the two screenshot sizes.
-4. Answer the age-rating and export-compliance questionnaires as noted above.
-5. Select the build (8, version 1.0) in the version page.
+1. Take and upload the two screenshot sizes.
+2. Answer the age-rating and export-compliance questionnaires as noted above.
+3. Select the build (8, version 1.0) in the version page.
+
+The privacy policy and support pages are published, so those two URLs can be
+pasted into App Store Connect as they are.
