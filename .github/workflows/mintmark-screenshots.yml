@@ -132,20 +132,34 @@ jobs:
             # which needs no tapping and raises no "Open in Mintmark?" dialog.
             # launch is refused outright if it lands while the last shutdown is
             # still settling, so it is retried and never silenced.
+            stop_app() {
+              xcrun simctl terminate "$udid" "$BUNDLE_ID" 2>/dev/null || true
+              for _ in $(seq 1 24); do
+                xcrun simctl spawn "$udid" launchctl list 2>/dev/null \
+                  | grep -q "UIKitApplication:$BUNDLE_ID" || return 0
+                sleep 0.5
+              done
+              echo "app still running after terminate"
+            }
+            # A launch that lands while the app is still alive is answered by
+            # foregrounding it, and the arguments are then ignored. Terminate and
+            # wait for it to be gone first, then shoot; if the frame is identical
+            # to the previous one the screen did not change, so do it again.
             open() { # $1 = screenshot name, rest = launch arguments
               local name="$1"; shift
-              local tries=0
-              until xcrun simctl launch --terminate-running-process "$udid" "$BUNDLE_ID" "$@"; do
-                tries=$((tries + 1))
-                if [ "$tries" -ge 4 ]; then echo "could not launch for $name"; exit 1; fi
-                echo "launch for $name refused, retrying in 3s"
+              local file="$OUT/$slot-$name.png" attempt
+              for attempt in 1 2 3; do
+                stop_app
+                if ! xcrun simctl launch "$udid" "$BUNDLE_ID" "$@"; then
+                  sleep 3; continue
+                fi
+                sleep 7
+                shot "$udid" "$file"
+                if [ "$attempt" = 1 ] || [ ! -f "$OUT/$slot-1-capture.png" ]; then return 0; fi
+                if [ "$(md5 -q "$file")" != "$(md5 -q "$OUT/$slot-1-capture.png")" ] || [ "$name" = 1-capture ]; then return 0; fi
+                echo "$name looks like the first screen, retrying"
                 sleep 3
               done
-              sleep 7
-              shot "$udid" "$OUT/$slot-$name.png"
-              # What the app said it was asked for, so a wrong screen is visible here.
-              xcrun simctl spawn "$udid" log show --last 20s --style compact \
-                --predicate 'eventMessage CONTAINS "[capture]"' 2>/dev/null | tail -2 || true
             }
             open 1-capture -MMScreen capture
             open 2-collection -MMScreen collection
