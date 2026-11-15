@@ -16,6 +16,16 @@ import { colors } from './src/theme'
 
 const client = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15_000 } } })
 
+/**
+ * A build made for App Store screenshots walks its own screens on a timer, so a
+ * simulator can photograph each one without tapping. Opening a route through the
+ * URL scheme would be the obvious way, but iOS puts an "Open in Mintmark?"
+ * confirmation in front of it, which the capture cannot dismiss. Unset in every
+ * build that ships: EXPO_PUBLIC_MINTMARK_CAPTURE is only set by the workflow.
+ */
+const CAPTURE_MODE = process.env.EXPO_PUBLIC_MINTMARK_CAPTURE === '1'
+const CAPTURE_APPRAISAL = process.env.EXPO_PUBLIC_MINTMARK_APPRAISAL?.trim()
+
 type Tab = 'capture' | 'collection' | 'settings'
 type Route = { name: Tab } | { name: 'admin' } | { name: 'appraisal'; id: string }
 
@@ -66,6 +76,19 @@ function Root() {
   const back = () => setStack((current) => (current.length > 1 ? current.slice(0, -1) : current))
   const tab = (name: Tab) => setStack([{ name }])
   const showTabs = top.name === 'capture' || top.name === 'collection' || top.name === 'settings'
+
+  // Ordered shots, 12 seconds apart: capture, collection, appraisal, settings.
+  useEffect(() => {
+    if (!CAPTURE_MODE) return
+    const chapters: Route[][] = [
+      [{ name: 'capture' }],
+      [{ name: 'collection' }],
+      CAPTURE_APPRAISAL ? [{ name: 'capture' }, { name: 'appraisal', id: CAPTURE_APPRAISAL }] : [{ name: 'collection' }],
+      [{ name: 'settings' }],
+    ]
+    const timers = chapters.map((next, index) => setTimeout(() => setStack(next), index * 12_000))
+    return () => timers.forEach(clearTimeout)
+  }, [])
 
   // The scheme in app.json makes these addresses open the app at a route, which
   // is how a simulator (or a link in a message) can jump straight to a screen:

@@ -38,6 +38,7 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
 
       - name: Check the seeded collection is there
+        id: target
         run: |
           set -euo pipefail
           body=$(curl -sf -H "x-mintmark-visitor: $SEED_VISITOR" "$API_URL/api/appraisals")
@@ -49,9 +50,10 @@ jobs:
           import json,sys
           items=json.load(sys.stdin)["items"]
           best=max(items, key=lambda i: (i["valueHigh"], i["grade"]))
-          open("screenshot-target.txt","w").write(best["id"])
-          print("shooting", best["name"], best["valueLow"], "-", best["valueHigh"])
-          '
+          print(best["id"])
+          print("shooting", best["name"], best["valueLow"], "-", best["valueHigh"], file=sys.stderr)
+          ' > target-id.txt
+          echo "id=$(cat target-id.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -68,6 +70,8 @@ jobs:
         env:
           EXPO_PUBLIC_API_URL: ${{ env.API_URL }}
           EXPO_PUBLIC_MINTMARK_VISITOR: ${{ env.SEED_VISITOR }}
+          EXPO_PUBLIC_MINTMARK_CAPTURE: '1'
+          EXPO_PUBLIC_MINTMARK_APPRAISAL: ${{ steps.target.outputs.id }}
         run: |
           set -euo pipefail
           WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
@@ -88,7 +92,6 @@ jobs:
         run: |
           set -euo pipefail
           APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)
-          TARGET=$(cat screenshot-target.txt)
           # Relative to mobile/, which is where every run step starts: keeping it
           # inside mobile/ is what makes the artifact path below find the files.
           OUT="screenshots/out"
@@ -125,13 +128,15 @@ jobs:
               --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
             xcrun simctl install "$udid" "$APP"
             xcrun simctl launch "$udid" "$BUNDLE_ID" >/dev/null
-            sleep 8
+            # The capture build advances itself every 12s; shoot mid-way through
+            # each chapter so the screen has settled but has not moved on.
+            sleep 6
             shot "$udid" "$OUT/$slot-1-capture.png"
-            xcrun simctl openurl "$udid" "mintmark://collection"
+            sleep 12
             shot "$udid" "$OUT/$slot-2-collection.png"
-            xcrun simctl openurl "$udid" "mintmark://appraisal/$TARGET"
+            sleep 12
             shot "$udid" "$OUT/$slot-3-appraisal.png"
-            xcrun simctl openurl "$udid" "mintmark://settings"
+            sleep 12
             shot "$udid" "$OUT/$slot-4-settings.png"
             xcrun simctl shutdown "$udid" || true
           done < devices.txt
