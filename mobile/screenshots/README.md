@@ -1,18 +1,23 @@
 # Screenshots
 
 The App Store screenshots are captured by `.github/workflows/mintmark-screenshots.yml`
-on a macOS runner: it builds the simulator app, boots two iPhone sizes, opens each
-screen through the app's URL scheme and keeps the PNGs as an artifact. No Mac
-needed, and `mobile/SCREENSHOTS.md` explains what each shot is meant to show.
+on a macOS runner: it builds the simulator app, boots two iPhone sizes, walks each
+one through four screens and keeps the PNGs as an artifact. No Mac needed, and
+`mobile/SCREENSHOTS.md` explains what each shot is meant to show.
 
 Two things make this possible:
 
 - **A prepared collection.** The workflow's build sets
   `EXPO_PUBLIC_MINTMARK_VISITOR`, so the app reads one fixed collection instead of
   making its own device id. No shipping build sets that value.
-- **URL routes.** `mintmark://capture`, `mintmark://collection`,
-  `mintmark://settings` and `mintmark://appraisal/<id>` open a screen directly,
-  which is what `xcrun simctl openurl` clicks.
+- **A capture script file.** With `EXPO_PUBLIC_MINTMARK_CAPTURE` set, the app polls
+  `Documents/capture-screen.json` once a second and shows whatever screen that file
+  names. The workflow writes the file on the simulator's disk between shots, so one
+  launch produces all four images. Nothing else works on a headless simulator:
+  `xcrun simctl openurl` raises iOS's own "Open in Mintmark?" dialog over the app,
+  `setTimeout` chains are coalesced and fire at once, and launch arguments are often
+  dropped when the launch quietly attaches to the copy that is already running.
+  Neither variable is set in a shipping build.
 
 ## Seeding the collection
 
@@ -46,7 +51,12 @@ curl -X DELETE https://mint.innotel.tech/api/appraisals \
 
 ## Adding a shot
 
-Add a `mintmark://…` route in `App.tsx` and one `xcrun simctl openurl` line in the
-workflow's capture step. Keep the file names `slot-N-what.png` — the size check
-reads the slot from the prefix and rejects anything that is not an accepted
+Add the screen to the switch in `useCaptureScript` in `App.tsx`, then one `ask` line
+in the workflow's capture step. Keep the file names `slot-N-what.png` — the size
+check reads the slot from the prefix and rejects anything that is not an accepted
 App Store resolution.
+
+The images are committed in `out/`, so a fresh run is only needed to refresh them:
+`gh workflow run mintmark-screenshots.yml -R innotelinc/mintmark` takes about
+fifteen minutes, then `gh run download <id> -R innotelinc/mintmark -n
+mintmark-screenshots -D mobile/screenshots/out`.
