@@ -28,11 +28,10 @@ Already pushed into App Store Connect through the API, and readable back from it
 build 8 (`VALID`) and both screenshot sets. `releaseType` is `AFTER_APPROVAL`, so
 releasing the approved build is a manual step in App Store Connect, not automatic.
 
-Getting there needed the App Privacy answers **published**, not just saved. Apple
-reported that as exactly one remaining reason: (`STATE_ERROR.APP_DATA_USAGES_REQUIRED`, "You must have published answers
-to your app's data usages"). The questionnaire is web-UI only, and saving the answers
-is not enough — the section has to be published. Everything else submission asks for
-is now set through the API:
+Getting there needed the App Privacy answers **published**, not just saved. Until they
+were, Apple refused with `STATE_ERROR.APP_DATA_USAGES_REQUIRED` — "You must have
+published answers to your app's data usages". The questionnaire is web-UI only.
+Everything else submission asks for is set through the API:
 
 | Requirement | Value |
 | --- | --- |
@@ -261,9 +260,9 @@ its value range, and settings.
    now `WAITING_FOR_REVIEW`.
 2. When Apple approves, release the build manually: `releaseType` is `AFTER_APPROVAL`.
 
-Once App Privacy is published, submitting is one API call: `PATCH
-/v1/reviewSubmissions/{id}` with `submitted: true`, after attaching the version to one
-of the existing drafts with `POST /v1/reviewSubmissionItems`.
+Submitting is two calls once the metadata is in place: `POST /v1/reviewSubmissionItems`
+to attach the version to a draft, then `PATCH /v1/reviewSubmissions/{id}` with
+`submitted: true`.
 
 The privacy policy and support pages are published, so those two URLs can be
 pasted into App Store Connect as they are.
