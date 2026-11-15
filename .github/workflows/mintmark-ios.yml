@@ -131,6 +131,24 @@ jobs:
             echo "::error::no ios/Podfile — expo prebuild did not produce a CocoaPods project"; exit 1
           fi
 
+      # expo writes CFBundleVersion and CFBundleShortVersionString as literals
+      # into Info.plist, so passing CURRENT_PROJECT_VERSION/MARKETING_VERSION to
+      # xcodebuild does nothing: the first successful upload arrived as build 1
+      # of version 0.1.0 while the run number was 6. App Store Connect refuses a
+      # build number it already has, so every run must stamp its own here.
+      - name: Stamp the version and build number
+        run: |
+          set -euo pipefail
+          PLIST=$(ls ios/*/Info.plist 2>/dev/null | head -1)
+          if [ -z "$PLIST" ]; then
+            echo "::error::expo prebuild produced no Info.plist under ios/*/"
+            ls ios || true
+            exit 1
+          fi
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $IOS_MARKETING_VERSION" "$PLIST"
+          echo "$PLIST: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST") ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST"))"
+
       # expo prebuild names the Xcode project after app.json's name, so nothing
       # here may assume it. Hard-coding "App" is why the first run failed with
       # "ios/App.xcworkspace does not exist" before compiling a single line.
@@ -215,6 +233,12 @@ jobs:
           test -f "$APP/main.jsbundle" || { echo "::error::the JavaScript bundle did not reach the app"; exit 1; }
           BUNDLE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
           echo "bundle $BUNDLE $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist") ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist"))"
+          # A rebuild of a number Apple already has is rejected after the upload,
+          # so fail here instead when the stamp did not take.
+          BUILT=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")
+          test "$BUILT" = "$GITHUB_RUN_NUMBER" || { echo "::error::CFBundleVersion is $BUILT, not the run number $GITHUB_RUN_NUMBER"; exit 1; }
+          SHORT=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")
+          test "$SHORT" = "$IOS_MARKETING_VERSION" || { echo "::error::CFBundleShortVersionString is $SHORT, not $IOS_MARKETING_VERSION"; exit 1; }
           test "$BUNDLE" = "$BUNDLE_ID" || { echo "::error::unexpected bundle id $BUNDLE"; exit 1; }
           /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$APP/Info.plist" | grep -q . || { echo "::error::NSCameraUsageDescription is missing"; exit 1; }
           if [ -n "$API_URL" ]; then
