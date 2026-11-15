@@ -23,8 +23,13 @@ Already pushed into App Store Connect through the API, and readable back from it
 | Age rating | every category answered "None" via the API |
 | Categories | Reference (primary), Utilities (secondary) |
 
-Submission is refused for exactly one remaining reason: **App Privacy answers are not
-published** (`STATE_ERROR.APP_DATA_USAGES_REQUIRED`, "You must have published answers
+**Submitted for review** on 15 November 2026, 15:04 UTC, submission
+`bf066005-f13f-4e39-9797-b8e2e9a84d05`. The version sits at `WAITING_FOR_REVIEW` with
+build 8 (`VALID`) and both screenshot sets. `releaseType` is `AFTER_APPROVAL`, so
+releasing the approved build is a manual step in App Store Connect, not automatic.
+
+Getting there needed the App Privacy answers **published**, not just saved. Apple
+reported that as exactly one remaining reason: (`STATE_ERROR.APP_DATA_USAGES_REQUIRED`, "You must have published answers
 to your app's data usages"). The questionnaire is web-UI only, and saving the answers
 is not enough — the section has to be published. Everything else submission asks for
 is now set through the API:
@@ -249,12 +254,12 @@ its value range, and settings.
 
 ## Still to do before submitting
 
-1. **Publish** App Privacy → Data Types using the table above. The API neither reads
-   nor writes it, so the submission below is the only way to test it: three attempts
-   came back with the same "published answers" error while the answers were saved.
-2. Delete the two empty review-submission drafts (Version page → the submission
-   panel). `DELETE` is not an allowed operation on `reviewSubmissions` at all — the
-   API answers 403 `FORBIDDEN_ERROR` for every state, so this is web-UI only.
+1. Delete the one empty review-submission draft still listed on the Version page
+   (`39c1d92d-b8fd-4026-83e4-3e7b8ea677d6`). `DELETE` is not an allowed operation on
+   `reviewSubmissions` at all — the API answers 403 `FORBIDDEN_ERROR` for every state,
+   so this has to happen in the web UI. The other draft carried the submission and is
+   now `WAITING_FOR_REVIEW`.
+2. When Apple approves, release the build manually: `releaseType` is `AFTER_APPROVAL`.
 
 Once App Privacy is published, submitting is one API call: `PATCH
 /v1/reviewSubmissions/{id}` with `submitted: true`, after attaching the version to one
