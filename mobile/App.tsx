@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Linking, NativeModules, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { getApiBase, loadApiBase } from './src/api'
@@ -24,7 +24,26 @@ const client = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTim
  * build that ships: EXPO_PUBLIC_MINTMARK_CAPTURE is only set by the workflow.
  */
 const CAPTURE_MODE = process.env.EXPO_PUBLIC_MINTMARK_CAPTURE === '1'
-const CAPTURE_APPRAISAL = process.env.EXPO_PUBLIC_MINTMARK_APPRAISAL?.trim()
+
+/**
+ * `xcrun simctl launch <udid> us.inotel.mintmark -MMScreen collection` puts that
+ * pair in the app's defaults, which is the only way to start the app on a chosen
+ * screen without a person tapping and without iOS asking "Open in Mintmark?".
+ * Absent in every normal launch, so the app opens where it always does.
+ */
+function launchArguments(): { screen?: string; appraisal?: string } {
+  try {
+    const defaults = NativeModules.SettingsManager?.settings
+    const screen = defaults?.MMScreen
+    const appraisal = defaults?.MMAppraisal
+    return {
+      screen: typeof screen === 'string' ? screen : undefined,
+      appraisal: typeof appraisal === 'string' ? appraisal : undefined,
+    }
+  } catch {
+    return {}
+  }
+}
 
 type Tab = 'capture' | 'collection' | 'settings'
 type Route = { name: Tab } | { name: 'admin' } | { name: 'appraisal'; id: string }
@@ -70,23 +89,30 @@ export default function App() {
 }
 
 function Root() {
-  const [stack, setStack] = useState<Route[]>([{ name: 'capture' }])
+  const [stack, setStack] = useState<Route[]>(() => {
+    const { screen, appraisal } = launchArguments()
+    if (screen === 'collection' || screen === 'settings' || screen === 'capture') return [{ name: screen }]
+    if (screen === 'appraisal' && appraisal) return [{ name: 'capture' }, { name: 'appraisal', id: appraisal }]
+    return [{ name: 'capture' }]
+  })
   const top = stack[stack.length - 1]
   const push = (route: Route) => setStack((current) => [...current, route])
   const back = () => setStack((current) => (current.length > 1 ? current.slice(0, -1) : current))
   const tab = (name: Tab) => setStack([{ name }])
   const showTabs = top.name === 'capture' || top.name === 'collection' || top.name === 'settings'
 
-  // Ordered shots, 12 seconds apart: capture, collection, appraisal, settings.
+  // Fallback for a capture build launched without arguments: walk the screens so
+  // a plain `simctl launch` still produces more than one image. A headless
+  // simulator coalesces these timers, which is why the workflow passes the screen
+  // in as a launch argument instead.
   useEffect(() => {
-    if (!CAPTURE_MODE) return
+    if (!CAPTURE_MODE || launchArguments().screen) return
     const chapters: Route[][] = [
       [{ name: 'capture' }],
       [{ name: 'collection' }],
-      CAPTURE_APPRAISAL ? [{ name: 'capture' }, { name: 'appraisal', id: CAPTURE_APPRAISAL }] : [{ name: 'collection' }],
       [{ name: 'settings' }],
     ]
-    const timers = chapters.map((next, index) => setTimeout(() => setStack(next), index * 12_000))
+    const timers = chapters.map((next, index) => setTimeout(() => setStack(next), index * 20_000))
     return () => timers.forEach(clearTimeout)
   }, [])
 

@@ -71,7 +71,6 @@ jobs:
           EXPO_PUBLIC_API_URL: ${{ env.API_URL }}
           EXPO_PUBLIC_MINTMARK_VISITOR: ${{ env.SEED_VISITOR }}
           EXPO_PUBLIC_MINTMARK_CAPTURE: '1'
-          EXPO_PUBLIC_MINTMARK_APPRAISAL: ${{ steps.target.outputs.id }}
         run: |
           set -euo pipefail
           WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
@@ -89,6 +88,8 @@ jobs:
           ls -d build/Build/Products/Release-iphonesimulator/*.app
 
       - name: Capture
+        env:
+          TARGET: ${{ steps.target.outputs.id }}
         run: |
           set -euo pipefail
           APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)
@@ -127,17 +128,20 @@ jobs:
             xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged \
               --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
             xcrun simctl install "$udid" "$APP"
-            xcrun simctl launch "$udid" "$BUNDLE_ID" >/dev/null
-            # The capture build advances itself every 12s; shoot mid-way through
-            # each chapter so the screen has settled but has not moved on.
-            sleep 6
-            shot "$udid" "$OUT/$slot-1-capture.png"
-            sleep 12
-            shot "$udid" "$OUT/$slot-2-collection.png"
-            sleep 12
-            shot "$udid" "$OUT/$slot-3-appraisal.png"
-            sleep 12
-            shot "$udid" "$OUT/$slot-4-settings.png"
+            # One relaunch per screen: launch arguments reach the app as defaults,
+            # which needs no tapping and raises no "Open in Mintmark?" dialog.
+            open() { # $1 = screenshot name, rest = launch arguments
+              local name="$1"; shift
+              xcrun simctl terminate "$udid" "$BUNDLE_ID" 2>/dev/null || true
+              sleep 1
+              xcrun simctl launch "$udid" "$BUNDLE_ID" "$@" >/dev/null
+              sleep 7
+              shot "$udid" "$OUT/$slot-$name.png"
+            }
+            open 1-capture -MMScreen capture
+            open 2-collection -MMScreen collection
+            open 3-appraisal -MMScreen appraisal -MMAppraisal "$TARGET"
+            open 4-settings -MMScreen settings
             xcrun simctl shutdown "$udid" || true
           done < devices.txt
 
