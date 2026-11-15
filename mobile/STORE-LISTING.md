@@ -222,9 +222,13 @@ to 25 appraisals a day.
 | Asset | Status |
 | --- | --- |
 | 1024×1024 icon | `mobile/assets/icon.png` — 1024×1024, RGB, no alpha channel, ready |
-| iPhone 6.9" screenshots (1320×2868) | **missing** — required |
-| iPhone 6.5" screenshots (1284×2778) | **missing** — required |
+| iPhone Dynamic Island (medium) `1206×2622` | **missing** — the required set |
+| iPhone Dynamic Island (large) `1320×2868` | **missing** — optional, but supplying it removes the 6.5" requirement |
+| iPhone with Face ID (large) `1284×2778` | not needed once the large Dynamic Island set exists |
 | App preview video | not needed |
+
+`mobile/SCREENSHOTS.md` is the capture guide: the four screens to shoot, what has
+to be on each, the clean status-bar command and the exact sizes.
 
 Screenshots to take, in order: the capture screen with a coin in frame, an
 appraisal showing the value card and the grade scale, the drivers and red flags
@@ -232,7 +236,8 @@ section, and the collection list.
 
 ## Still to do before submitting
 
-1. Take and upload the two screenshot sizes (the only hard blocker left).
+1. Take and upload the two screenshot sets (the only hard blocker left) —
+   `mobile/SCREENSHOTS.md` walks through it.
 2. Fill in App Privacy → Data Types in the web UI using the table above; the API
    does not expose it.
 3. Delete the two empty review-submission drafts the API attempts left behind
