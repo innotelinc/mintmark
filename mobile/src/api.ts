@@ -44,11 +44,19 @@ const randomId = () =>
 let visitorPromise: Promise<string> | undefined
 
 /**
+ * A build made for App Store screenshots reads a prepared collection instead of
+ * making its own id: the workflow seeds a few appraisals under one id and the
+ * capture run opens that. Unset in every build that ships.
+ */
+const FIXED_VISITOR = process.env.EXPO_PUBLIC_MINTMARK_VISITOR?.trim()
+
+/**
  * A stable id for this install. A native build carries no cookie, and behind the
  * friendly name every request would otherwise arrive from the edge's address
  * and share one collection and one daily allowance. Kept per device instead.
  */
 function visitorId(): Promise<string> {
+  if (FIXED_VISITOR && /^[0-9a-f]{16}$/.test(FIXED_VISITOR)) return Promise.resolve(FIXED_VISITOR)
   visitorPromise ??= (async () => {
     try {
       const stored = await AsyncStorage.getItem(VISITOR_KEY)

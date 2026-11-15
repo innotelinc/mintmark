@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { getApiBase, loadApiBase } from './src/api'
@@ -66,6 +66,26 @@ function Root() {
   const back = () => setStack((current) => (current.length > 1 ? current.slice(0, -1) : current))
   const tab = (name: Tab) => setStack([{ name }])
   const showTabs = top.name === 'capture' || top.name === 'collection' || top.name === 'settings'
+
+  // The scheme in app.json makes these addresses open the app at a route, which
+  // is how a simulator (or a link in a message) can jump straight to a screen:
+  // mintmark://capture, mintmark://collection, mintmark://settings,
+  // mintmark://appraisal/<id>.
+  useEffect(() => {
+    const apply = (url: string | null | undefined) => {
+      if (!url) return
+      const route = url.replace(/^mintmark:\/\//, '').replace(/\/+$/, '')
+      if (route === 'capture' || route === 'collection' || route === 'settings') {
+        setStack([{ name: route }])
+        return
+      }
+      const appraisal = /^appraisal\/(.+)$/.exec(route)
+      if (appraisal) setStack([{ name: 'capture' }, { name: 'appraisal', id: decodeURIComponent(appraisal[1]) }])
+    }
+    void Linking.getInitialURL().then(apply)
+    const subscription = Linking.addEventListener('url', (event) => apply(event.url))
+    return () => subscription.remove()
+  }, [])
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>

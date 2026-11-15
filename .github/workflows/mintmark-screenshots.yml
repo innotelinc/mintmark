@@ -1,0 +1,167 @@
+name: Mintmark App Store screenshots
+
+# Captures the App Store screenshots without a Mac in front of you: a macOS
+# runner builds the simulator app, boots two iPhone sizes, opens each screen
+# through the app's own URL scheme, and saves the PNGs as an artifact.
+#
+# The collection it photographs is real: `mobile/screenshots/README.md` describes
+# how the appraisals are seeded from public-domain coin photos. The build reads
+# that collection through EXPO_PUBLIC_MINTMARK_VISITOR, which no shipping build
+# sets.
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: mobile
+
+env:
+  API_URL: https://mint.innotel.tech
+  SEED_VISITOR: a1b2c3d4e5f60718
+  BUNDLE_ID: us.inotel.mintmark
+  EXPO_NO_TELEMETRY: '1'
+  CI: '1'
+
+jobs:
+  screenshots:
+    name: Capture
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Check the seeded collection is there
+        run: |
+          set -euo pipefail
+          body=$(curl -sf -H "x-mintmark-visitor: $SEED_VISITOR" "$API_URL/api/appraisals")
+          count=$(printf '%s' "$body" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)["items"]))')
+          echo "seeded appraisals: $count"
+          test "$count" -ge 3 || { echo "::error::seed the collection first (see mobile/screenshots/README.md)"; exit 1; }
+          # The most valuable coin makes the better second screenshot.
+          printf '%s' "$body" | python3 -c '
+          import json,sys
+          items=json.load(sys.stdin)["items"]
+          best=max(items, key=lambda i: (i["valueHigh"], i["grade"]))
+          open("screenshot-target.txt","w").write(best["id"])
+          print("shooting", best["name"], best["valueLow"], "-", best["valueHigh"])
+          '
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate the Xcode project
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Install native dependencies
+        run: pod install --project-directory=ios
+
+      # EXPO_PUBLIC_* values are inlined while the JavaScript is bundled, so they
+      # have to be in the environment of the build itself.
+      - name: Build for the simulator
+        env:
+          EXPO_PUBLIC_API_URL: ${{ env.API_URL }}
+          EXPO_PUBLIC_MINTMARK_VISITOR: ${{ env.SEED_VISITOR }}
+        run: |
+          set -euo pipefail
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$(ls -d ios/*.xcodeproj | head -1)" .xcodeproj)
+          echo "workspace $WORKSPACE, scheme $SCHEME"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          ls -d build/Build/Products/Release-iphonesimulator/*.app
+
+      - name: Capture
+        run: |
+          set -euo pipefail
+          APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)
+          TARGET=$(cat screenshot-target.txt)
+          OUT="../screenshots/out"
+          mkdir -p "$OUT"
+
+          python3 - > devices.txt <<'PY'
+          import json, re, subprocess
+          raw = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '--json']))
+          devs = [d for runtime in raw['devices'].values() for d in runtime]
+          def pick(pattern, exclude=()):
+              for d in devs:
+                  if re.fullmatch(pattern, d['name']) and not any(e in d['name'] for e in exclude):
+                      return d
+          medium = pick(r'iPhone \d+ Pro') or pick(r'iPhone \d+')
+          large = pick(r'iPhone \d+ Pro Max') or pick(r'iPhone \d+ Plus') or pick(r'iPhone \d+ Pro Max')
+          for slot, dev in (('medium', medium), ('large', large)):
+              if dev:
+                  print(slot, dev['udid'], dev['name'].replace(' ', '-'), sep='|')
+          PY
+          cat devices.txt
+          test -s devices.txt || { echo "::error::no iPhone simulators available"; xcrun simctl list devices available | head -20; exit 1; }
+
+          shot() { # $1 udid, $2 out path
+            sleep 3
+            xcrun simctl io "$1" screenshot --type=png "$2" >/dev/null
+            echo "  $(basename "$2") $(sips -g pixelWidth -g pixelHeight "$2" | awk '/pixel/ {printf "%s ", $2}')"
+          }
+
+          while IFS='|' read -r slot udid name; do
+            echo "=== $slot: $name ($udid)"
+            xcrun simctl boot "$udid" || true
+            xcrun simctl bootstatus "$udid" -b
+            xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged \
+              --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+            xcrun simctl install "$udid" "$APP"
+            xcrun simctl launch "$udid" "$BUNDLE_ID" >/dev/null
+            sleep 8
+            shot "$udid" "$OUT/$slot-1-capture.png"
+            xcrun simctl openurl "$udid" "mintmark://collection"
+            shot "$udid" "$OUT/$slot-2-collection.png"
+            xcrun simctl openurl "$udid" "mintmark://appraisal/$TARGET"
+            shot "$udid" "$OUT/$slot-3-appraisal.png"
+            xcrun simctl openurl "$udid" "mintmark://settings"
+            shot "$udid" "$OUT/$slot-4-settings.png"
+            xcrun simctl shutdown "$udid" || true
+          done < devices.txt
+
+      # The sizes are not cosmetic: App Store Connect rejects anything that is not
+      # one of the accepted resolutions, so fail here rather than at upload.
+      - name: Check the pixel sizes
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob, struct, sys
+          ACCEPTED = {
+              'medium': {(1206, 2622), (1179, 2556)},
+              'large': {(1320, 2868), (1290, 2796), (1260, 2736), (1284, 2778), (1242, 2688)},
+          }
+          bad = 0
+          for path in sorted(glob.glob('../screenshots/out/*.png')):
+              with open(path, 'rb') as f:
+                  head = f.read(26)
+              w, h = struct.unpack('>II', head[16:24])
+              slot = 'medium' if path.split('/')[-1].startswith('medium') else 'large'
+              ok = (w, h) in ACCEPTED[slot]
+              print(f"{'ok  ' if ok else 'BAD '}{path.split('/')[-1]:34} {w}x{h}")
+              bad += 0 if ok else 1
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mintmark-screenshots
+          path: mobile/screenshots/out
+          if-no-files-found: warn
+          retention-days: 14
