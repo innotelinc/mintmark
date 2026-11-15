@@ -130,13 +130,22 @@ jobs:
             xcrun simctl install "$udid" "$APP"
             # One relaunch per screen: launch arguments reach the app as defaults,
             # which needs no tapping and raises no "Open in Mintmark?" dialog.
+            # launch is refused outright if it lands while the last shutdown is
+            # still settling, so it is retried and never silenced.
             open() { # $1 = screenshot name, rest = launch arguments
               local name="$1"; shift
-              xcrun simctl terminate "$udid" "$BUNDLE_ID" 2>/dev/null || true
-              sleep 1
-              xcrun simctl launch "$udid" "$BUNDLE_ID" "$@" >/dev/null
+              local tries=0
+              until xcrun simctl launch --terminate-running-process "$udid" "$BUNDLE_ID" "$@"; do
+                tries=$((tries + 1))
+                if [ "$tries" -ge 4 ]; then echo "could not launch for $name"; exit 1; fi
+                echo "launch for $name refused, retrying in 3s"
+                sleep 3
+              done
               sleep 7
               shot "$udid" "$OUT/$slot-$name.png"
+              # What the app said it was asked for, so a wrong screen is visible here.
+              xcrun simctl spawn "$udid" log show --last 20s --style compact \
+                --predicate 'eventMessage CONTAINS "[capture]"' 2>/dev/null | tail -2 || true
             }
             open 1-capture -MMScreen capture
             open 2-collection -MMScreen collection

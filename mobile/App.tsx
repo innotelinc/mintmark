@@ -91,6 +91,7 @@ export default function App() {
 function Root() {
   const [stack, setStack] = useState<Route[]>(() => {
     const { screen, appraisal } = launchArguments()
+    if (CAPTURE_MODE) console.info(`[capture] asked for ${screen ?? 'default'}${appraisal ? ` ${appraisal}` : ''}`)
     if (screen === 'collection' || screen === 'settings' || screen === 'capture') return [{ name: screen }]
     if (screen === 'appraisal' && appraisal) return [{ name: 'capture' }, { name: 'appraisal', id: appraisal }]
     return [{ name: 'capture' }]
