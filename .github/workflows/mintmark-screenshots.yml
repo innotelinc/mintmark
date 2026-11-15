@@ -89,7 +89,9 @@ jobs:
           set -euo pipefail
           APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)
           TARGET=$(cat screenshot-target.txt)
-          OUT="../screenshots/out"
+          # Relative to mobile/, which is where every run step starts: keeping it
+          # inside mobile/ is what makes the artifact path below find the files.
+          OUT="screenshots/out"
           mkdir -p "$OUT"
 
           python3 - > devices.txt <<'PY'
@@ -146,7 +148,7 @@ jobs:
               'large': {(1320, 2868), (1290, 2796), (1260, 2736), (1284, 2778), (1242, 2688)},
           }
           bad = 0
-          for path in sorted(glob.glob('../screenshots/out/*.png')):
+          for path in sorted(glob.glob('screenshots/out/*.png')):
               with open(path, 'rb') as f:
                   head = f.read(26)
               w, h = struct.unpack('>II', head[16:24])
@@ -163,5 +165,5 @@ jobs:
         with:
           name: mintmark-screenshots
           path: mobile/screenshots/out
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
