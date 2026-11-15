@@ -4,8 +4,28 @@ Everything App Store Connect asks for, in the order it asks for it, with the
 character limits that apply. Copy the blocks below verbatim; the lengths in
 brackets are the real counts.
 
-The app record already exists: **Mintmark Appraisal**, bundle id
-`us.inotel.mintmark`, SKU `mintmark`, version 1.0 in *Prepare for Submission*.
+The app record is **Mintmark Appraisal**, bundle id `us.inotel.mintmark`, SKU
+`mintmark`, version 1.0 in *Prepare for Submission*.
+
+Already pushed into App Store Connect through the API, and readable back from it:
+
+| Field | Live value |
+| --- | --- |
+| Name | `Mintmark Appraisal` |
+| Subtitle | `Grade any coin from a photo` |
+| Privacy Policy URL | `https://mint.innotel.tech/privacy` |
+| Description | 1,682 characters |
+| Keywords | 96 characters |
+| Promotional text | 160 characters |
+| Support URL | `https://mint.innotel.tech/support` |
+| Marketing URL | `https://mint.innotel.tech` |
+| Build | 8 (version 1.0) attached to the version |
+| Age rating | every category answered "None" via the API |
+| Categories | Reference (primary), Utilities (secondary) |
+
+Submission is refused until two things exist that no API can supply: **screenshots**
+(`appScreenshotSets` is empty) and the **App Privacy questionnaire**, which is
+web-UI only.
 
 ## Basics
 
@@ -212,9 +232,12 @@ section, and the collection list.
 
 ## Still to do before submitting
 
-1. Take and upload the two screenshot sizes.
-2. Answer the age-rating and export-compliance questionnaires as noted above.
-3. Select the build (8, version 1.0) in the version page.
+1. Take and upload the two screenshot sizes (the only hard blocker left).
+2. Fill in App Privacy → Data Types in the web UI using the table above; the API
+   does not expose it.
+3. Delete the two empty review-submission drafts the API attempts left behind
+   (Version page → the submission panel), which cannot be deleted through the API
+   in `READY_FOR_REVIEW`.
 
 The privacy policy and support pages are published, so those two URLs can be
 pasted into App Store Connect as they are.
