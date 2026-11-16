@@ -20,11 +20,8 @@ services:
       # SQLite lives outside the image, so rebuilding keeps the data.
       - "${MINTMARK_DATA:-./data}:/data"
     healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - fetch('http://127.0.0.1:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))
+      # /api/health answers from the worker without touching the model.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
