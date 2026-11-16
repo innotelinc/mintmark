@@ -1,0 +1,31 @@
+# The site on our own box: docker compose -f compose.selfhost.yml up -d --build
+#
+# The gateway key is read from the environment (or a host .env passed with
+# --env-file) and never lives in this file. Everything else that used to be
+# hand-typed into `docker run` is declared here.
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.selfhost
+    image: mintmark-web:${MINTMARK_TAG:-local}
+    container_name: mintmark-web
+    restart: unless-stopped
+    ports:
+      # The edge forwards mint.innotel.tech here; Docker publishes on all interfaces.
+      - "${MINTMARK_PORT:-8930}:8080"
+    environment:
+      MINTMARK_API_KEY: ${MINTMARK_API_KEY:?set MINTMARK_API_KEY before starting}
+    volumes:
+      # SQLite lives outside the image, so rebuilding keeps the data.
+      - "${MINTMARK_DATA:-./data}:/data"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:8080/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

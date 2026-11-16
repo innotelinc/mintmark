@@ -1,6 +1,8 @@
 .freebuff/
 node_modules
 dist
+# Default volume path for compose.selfhost.yml when run from the repo root.
+/data
 # Generated locally by `npx cap add ios`; CI creates it on the macOS runner.
 ios
 .wrangler

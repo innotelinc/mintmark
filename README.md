@@ -98,12 +98,16 @@ innotel edge. The worker is unchanged; `server/selfhost.mjs` supplies the two
 bindings Cloudflare used to (static `ASSETS` over `dist/client`, and `DB` as a
 SQLite file under `/data`), so nothing in `src/worker` knows the difference.
 
+On the box, `compose.selfhost.yml` declares the whole thing, so bringing it up
+(or rebuilding it) is one command rather than a remembered `docker run`:
+
 ```sh
-docker build -f Dockerfile.selfhost -t mintmark-web .
-docker run -d --name mintmark-web --restart unless-stopped \
-  -p 8930:8080 -v /root/mintmark-data:/data \
-  -e MINTMARK_API_KEY="$MINTMARK_API_KEY" mintmark-web
+export MINTMARK_API_KEY="$MINTMARK_API_KEY" MINTMARK_DATA=/root/mintmark-data
+docker compose -f compose.selfhost.yml up -d --build
 ```
+
+Keep the key in the host environment or an untracked `--env-file`, never in the
+compose file. `MINTMARK_PORT` defaults to 8930 and `MINTMARK_DATA` to `./data`.
 
 The edge holds one proxy host for `mint.innotel.tech` → `http://192.168.1.113:8930`
 with its Let's Encrypt certificate, and no Host rewrite is needed because the
