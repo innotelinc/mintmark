@@ -29,10 +29,15 @@ composed store art in — a version in review has locked screenshot wells — wh
 the version to `DEVELOPER_REJECTED`, and it was resubmitted as
 `ce109432-959e-44fe-8f6f-56eb0bc1c69e`.
 
-The version sits at `WAITING_FOR_REVIEW` with build 8 (`VALID`) attached and both
-screenshot sets holding six images. `releaseType` is `AFTER_APPROVAL`, so releasing the
-approved build is a manual step in App Store Connect, not automatic. Review restarts
-from the new submission date, so the earlier queue position is gone.
+**Approved and live.** Submitted on 15 November 2026 at 22:57 UTC, the version went into
+review on 16 November at 19:31 UTC and came out of it at 20:21 UTC the same day — fifty
+minutes in review — as `READY_FOR_SALE`. Build 8 is what is on sale, with both screenshot
+sets holding six images, at:
+
+<https://apps.apple.com/us/app/mintmark-appraisal/id6834939837>
+
+`releaseType` is `AFTER_APPROVAL`, which releases an approved build by itself; that is what
+happened here, and no manual release step was taken.
 
 Getting there needed the App Privacy answers **published**, not just saved. Until they
 were, Apple refused with `STATE_ERROR.APP_DATA_USAGES_REQUIRED` — "You must have
