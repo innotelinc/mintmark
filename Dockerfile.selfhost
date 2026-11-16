@@ -1,0 +1,21 @@
+# Mintmark served from our own box. The worker is unchanged; server/selfhost.mjs
+# supplies the ASSETS and DB bindings Cloudflare used to.
+FROM node:24-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:24-slim
+WORKDIR /app
+ENV NODE_ENV=production \
+    PORT=8080 \
+    DATA_DIR=/data
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package.json ./
+COPY server ./server
+RUN mkdir -p /data
+VOLUME /data
+EXPOSE 8080
+CMD ["node", "server/selfhost.mjs"]
