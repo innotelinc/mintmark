@@ -108,6 +108,7 @@ docker compose -f compose.selfhost.yml up -d --build
 
 Keep the key in the host environment or an untracked `--env-file`, never in the
 compose file. `MINTMARK_PORT` defaults to 8930 and `MINTMARK_DATA` to `./data`.
+Rebuilds, key rotation, backups and rollback are in [RUNBOOK.md](RUNBOOK.md).
 
 The edge holds one proxy host for `mint.innotel.tech` → `http://192.168.1.113:8930`
 with its Let's Encrypt certificate, and no Host rewrite is needed because the
