@@ -91,10 +91,29 @@ per visitor per day caps the spend, and `DAILY_DEPLOYMENT_LIMIT` (250) is the
 ceiling across everyone — the identity is anonymous, so a client can always earn
 a fresh allowance by clearing its cookie.
 
-## Deploy to Freebuff Sites
+## Hosting it on our own box
 
-Live: **https://mint.innotel.tech** (published preview environment). The site's
-own origin remains
+Live: **https://mint.innotel.tech**, served from `192.168.1.113:8930` behind the
+innotel edge. The worker is unchanged; `server/selfhost.mjs` supplies the two
+bindings Cloudflare used to (static `ASSETS` over `dist/client`, and `DB` as a
+SQLite file under `/data`), so nothing in `src/worker` knows the difference.
+
+```sh
+docker build -f Dockerfile.selfhost -t mintmark-web .
+docker run -d --name mintmark-web --restart unless-stopped \
+  -p 8930:8080 -v /root/mintmark-data:/data \
+  -e MINTMARK_API_KEY="$MINTMARK_API_KEY" mintmark-web
+```
+
+The edge holds one proxy host for `mint.innotel.tech` → `http://192.168.1.113:8930`
+with its Let's Encrypt certificate, and no Host rewrite is needed because the
+origin serves that name itself. A fresh database seeds `require_key = 0`, matching
+the free appraisals the hosted deployment offered; a key pasted into `/admin` still
+wins over the environment. Rebuild and `docker restart mintmark-web` to ship a change.
+
+## The older Freebuff Sites deployment
+
+Still published, no longer what the public name resolves to. Its own origin is
 `https://site-14e683b8ff8e42ea8147b66b91f8a10a.freebuff.page`, and the friendly
 name is served through the innotel edge (see below). D1 `DB` and the
 `MINTMARK_API_KEY` secret are attached to the site, and the repository variable
