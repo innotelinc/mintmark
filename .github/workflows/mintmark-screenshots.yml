@@ -102,7 +102,15 @@ jobs:
           python3 - > devices.txt <<'PY'
           import json, re, subprocess
           raw = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '--json']))
-          devs = [d for runtime in raw['devices'].values() for d in runtime]
+
+          def version(key):
+              # com.apple.CoreSimulator.SimRuntime.iOS-26-0 -> (26, 0)
+              tail = key.rsplit('.', 1)[-1]
+              digits = [int(part) for part in re.findall(r'\d+', tail.split('-', 1)[-1])]
+              return tuple(digits)
+
+          runtimes = sorted(raw['devices'], key=version, reverse=True)
+          devs = [d for runtime in runtimes for d in raw['devices'][runtime]]
           def pick(pattern, exclude=()):
               for d in devs:
                   if re.fullmatch(pattern, d['name']) and not any(e in d['name'] for e in exclude):
@@ -131,12 +139,31 @@ jobs:
             echo "  $(basename "$2") $(sips -g pixelWidth -g pixelHeight "$2" | awk '/pixel/ {printf "%s ", $2}')"
           }
 
+          # Every simctl call here can wait forever on a device that will not boot, and a
+          # hung step produces no log to say which one it was. boot_wait bounds it and
+          # names the device, so the run fails with a reason instead of timing out.
+          boot_wait() { # $1 udid, $2 name, $3 tries (5s each)
+            for attempt in $(seq 1 "${3:-60}"); do
+              if xcrun simctl list devices | grep -F "$1" | grep -q 'Booted'; then
+                echo "  $2 booted after $((attempt * 5))s"
+                return 0
+              fi
+              sleep 5
+            done
+            echo "::error::$2 did not boot in $(( ${3:-60} * 5 ))s"
+            xcrun simctl list devices | grep -iF "$1" || true
+            return 1
+          }
+
           while IFS='|' read -r slot udid name; do
             echo "=== $slot: $name ($udid)"
-            xcrun simctl boot "$udid" || true
-            xcrun simctl bootstatus "$udid" -b
+            echo "  booting"
+            xcrun simctl boot "$udid" 2>/dev/null || true
+            boot_wait "$udid" "$name"
+            echo "  status bar"
             xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged \
               --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+            echo "  installing $APP"
             xcrun simctl install "$udid" "$APP"
             # One launch for all four shots. The capture build watches
             # Documents/capture-screen.json and switches to whatever it names, so the
@@ -151,6 +178,7 @@ jobs:
             }
             xcrun simctl launch "$udid" "$BUNDLE_ID"
             sleep 8
+            echo "  capturing"
             ask capture
             shot "$udid" "$OUT/$slot-1-capture.png"
             ask collection
