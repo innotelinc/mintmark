@@ -9,30 +9,80 @@
   <meta property="og:description" content="One photo in, one appraisal out: identification, grade and a collector-market value range, free on the App Store and in the browser.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://innotelinc.github.io/mintmark/">
-  <meta name="theme-color" content="#0f1216">
+  <meta name="theme-color" content="#f5f1e8">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f1216'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23c9a227' stroke-width='3'/%3E%3Ctext x='32' y='40' font-size='20' text-anchor='middle' fill='%23c9a227' font-family='Georgia,serif'%3EM%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="unity-theme.css">
   <script>window.UNITY_DEFAULT_SCHEME = "operations";</script>
   <script src="unity-theme.js"></script>
   <style>
-    /* Mintmark wears Unity: every colour below is a token, never a literal. */
+    /* The App Store listing's palette: the page wears the colours a shopper
+       sees there — the store art's cream (#F5F1E8), the cards on it (#FFFDF8),
+       its ink (#1A1712), its bronze eyebrow (#8C6B33) and the icon's brass
+       (#C9A46B) on the icon's own near-black tile for dark mode. */
     :root {
-      --p-bg: var(--canvas);
-      --p-bg-elevated: var(--surface-muted);
-      --p-surface: var(--surface);
-      --p-surface-hover: var(--surface-sunken);
-      --p-border: var(--line);
-      --p-text: var(--ink);
-      --p-text-secondary: var(--ink-soft);
-      --p-text-muted: var(--ink-faint);
-      --p-accent: var(--brand);
-      --p-accent-hover: var(--brand-ring);
-      --p-accent-tint: var(--brand-soft);
-      --p-success: var(--ok);
-      --p-warning: var(--attention);
-      --p-danger: var(--bad);
-      --radius-md: var(--radius);
+      --p-bg: #f5f1e8;
+      --p-bg-elevated: #e9e1cf;
+      --p-surface: #fffdf8;
+      --p-surface-hover: #efe7d6;
+      --p-border: #e6dfd1;
+      --p-border-strong: #d2c9b6;
+      --p-text: #1a1712;
+      --p-text-secondary: #6e6556;
+      --p-text-muted: #9b9384;
+      --p-accent: #8c6b33;
+      --p-accent-hover: #6f5427;
+      --p-accent-tint: rgb(140 107 51 / 0.12);
+      --p-brand-ink: #fffdf8;
+      --p-success: #2c6b4b;
+      --p-success-soft: rgb(44 107 75 / 0.12);
+      --p-warning: #9c6a1a;
+      --p-danger: #ac3a2a;
+      --coin: #c9a46b;
+      --coin-rim: #8a6b3a;
+      --radius-md: 14px;
       --ease: cubic-bezier(.2, .8, .2, 1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-mode="light"]) {
+        --p-bg: #141210;
+        --p-bg-elevated: #1d1a15;
+        --p-surface: #221e18;
+        --p-surface-hover: #2b261f;
+        --p-border: #35302a;
+        --p-border-strong: #4a433a;
+        --p-text: #f5f1e8;
+        --p-text-secondary: #c9c1b3;
+        --p-text-muted: #948b7d;
+        --p-accent: #d4b27a;
+        --p-accent-hover: #e4c795;
+        --p-accent-tint: rgb(212 178 122 / 0.14);
+        --p-brand-ink: #1a1712;
+        --p-success: #4fb783;
+        --p-success-soft: rgb(79 183 131 / 0.16);
+        --coin: #d4b27a;
+        --coin-rim: #9a7a44;
+      }
+    }
+
+    :root[data-mode="dark"] {
+      --p-bg: #141210;
+      --p-bg-elevated: #1d1a15;
+      --p-surface: #221e18;
+      --p-surface-hover: #2b261f;
+      --p-border: #35302a;
+      --p-border-strong: #4a433a;
+      --p-text: #f5f1e8;
+      --p-text-secondary: #c9c1b3;
+      --p-text-muted: #948b7d;
+      --p-accent: #d4b27a;
+      --p-accent-hover: #e4c795;
+      --p-accent-tint: rgb(212 178 122 / 0.14);
+      --p-brand-ink: #1a1712;
+      --p-success: #4fb783;
+      --p-success-soft: rgb(79 183 131 / 0.16);
+      --coin: #d4b27a;
+      --coin-rim: #9a7a44;
     }
 
     * { box-sizing: border-box; }
@@ -55,7 +105,7 @@
     /* top bar */
     .topbar {
       position: sticky; top: 0; z-index: 10;
-      background: color-mix(in srgb, var(--canvas) 78%, transparent);
+      background: color-mix(in srgb, var(--p-bg) 84%, transparent);
       backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--p-border);
     }
@@ -84,8 +134,8 @@
     .hero::before {
       content: ""; position: absolute; inset: 0; pointer-events: none;
       background:
-        radial-gradient(620px 320px at 72% -10%, color-mix(in srgb, var(--coin) 12%, transparent), transparent 70%),
-        radial-gradient(520px 300px at 12% 110%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 70%);
+        radial-gradient(620px 320px at 72% -10%, color-mix(in srgb, var(--coin) 18%, transparent), transparent 70%),
+        radial-gradient(520px 300px at 12% 110%, color-mix(in srgb, var(--p-accent) 10%, transparent), transparent 70%);
     }
     .hero-inner { position: relative; max-width: 780px; }
     .kicker {
@@ -93,7 +143,7 @@
       font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase;
       color: var(--p-accent-hover);
       background: var(--p-accent-tint);
-      border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
+      border: 1px solid color-mix(in srgb, var(--p-accent) 28%, transparent);
       border-radius: var(--radius-pill);
       padding: 5px 14px; margin: 0 0 22px;
     }
@@ -110,11 +160,40 @@
       font-weight: 600; font-size: 15px; border: 1px solid transparent;
       transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
     }
-    .btn--primary { background: var(--p-accent); color: var(--brand-ink); }
-    .btn--primary:hover { background: var(--p-accent-hover); color: var(--brand-ink); }
+    .btn--primary { background: var(--p-accent); color: var(--p-brand-ink); }
+    .btn--primary:hover { background: var(--p-accent-hover); color: var(--p-brand-ink); }
     .btn--quiet { border-color: var(--p-border); color: var(--p-text); background: var(--p-surface); }
     .btn--quiet:hover { border-color: var(--p-accent); background: var(--p-accent-tint); color: var(--p-text); }
     .actions small { color: var(--p-text-muted); font-size: 13px; }
+
+    /* App Store header: the listing's icon row — tile, name, tagline, GET */
+    .store-head { display: flex; align-items: center; gap: 18px; margin: 0 0 26px; }
+    .store-icon {
+      width: 96px; height: 96px; border-radius: 22px; flex: none;
+      box-shadow: 0 10px 28px -16px rgb(26 23 18 / .55), 0 0 0 1px rgb(26 23 18 / .10);
+    }
+    .store-id { min-width: 0; flex: 1; }
+    .store-name { margin: 0; font-size: 21px; font-weight: 650; letter-spacing: -.01em; color: var(--p-text); }
+    .store-tag { margin: 2px 0 6px; font-size: 14.5px; color: var(--p-text-secondary); }
+    .store-meta { margin: 0; font-size: 12.5px; color: var(--p-text-muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .store-meta .sep { opacity: .5; }
+    .store-get {
+      flex: none; align-self: center;
+      padding: 8px 24px; border-radius: var(--radius-pill);
+      background: var(--p-accent); color: var(--p-brand-ink);
+      font-size: 14px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    }
+    .store-get:hover { background: var(--p-accent-hover); color: var(--p-brand-ink); }
+
+    /* the theme control follows the same warm palette as the page */
+    .ot-theme { background: var(--p-surface) !important; border-color: var(--p-border) !important; }
+    .ot-theme button { color: var(--p-text-muted) !important; }
+    .ot-theme button:hover { color: var(--p-text) !important; }
+    .ot-theme button[aria-pressed="true"] {
+      background: var(--p-bg-elevated) !important;
+      border-color: var(--p-border-strong) !important;
+      color: var(--p-text) !important;
+    }
 
     /* facts strip */
     .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--p-border); border: 1px solid var(--p-border); border-radius: var(--radius-lg); overflow: hidden; margin: 56px 0 0; }
@@ -161,7 +240,7 @@
     .surface small { color: var(--p-text-muted); font-size: 13.5px; }
     .surface .live {
       float: right; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
-      color: var(--p-success); background: var(--ok-soft); border-radius: var(--radius-pill); padding: 2px 9px;
+      color: var(--p-success); background: var(--p-success-soft); border-radius: var(--radius-pill); padding: 2px 9px;
     }
 
     /* about */
@@ -207,7 +286,22 @@
   <main id="top">
     <section class="hero" style="border-top:none">
       <div class="wrap hero-inner">
-        <p class="kicker"><span class="pulse"></span>v1.0.0 · build 8 · live on the App Store</p>
+        <div class="store-head">
+          <img class="store-icon" src="app-icon.png" width="96" height="96" alt="Mintmark app icon — a brass coin on ink">
+          <div class="store-id">
+            <p class="store-name">Mintmark Appraisal</p>
+            <p class="store-tag">Grade any coin from a photo</p>
+            <p class="store-meta">
+              <span>Free</span><span class="sep">·</span>
+              <span>Reference</span><span class="sep">·</span>
+              <span>4+</span><span class="sep">·</span>
+              <span>iPhone</span><span class="sep">·</span>
+              <span>v1.0.0 build 8</span>
+            </p>
+          </div>
+          <a class="store-get" href="https://apps.apple.com/us/app/mintmark-appraisal/id6834939837">Get</a>
+        </div>
+        <p class="kicker"><span class="pulse"></span>Live on the App Store</p>
         <h1>Photograph a coin.<br>Learn what collectors would pay.</h1>
         <p class="lede">
           Mintmark reads one photo of the obverse and answers like a careful dealer: what the coin

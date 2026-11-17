@@ -53,8 +53,10 @@ the [Unity theme](https://github.com/innotelinc/innotel-platform-stack/blob/main
 the attribution guards, a Pages landing page, and `compose.selfhost.yml` for the
 box that serves it.
 
+- Website: **[mint.innotel.tech](https://mint.innotel.tech)** — the app itself
+- This page: [innotelinc.github.io/mintmark](https://innotelinc.github.io/mintmark/)
+- App Store: [Mintmark Appraisal](https://apps.apple.com/us/app/mintmark-appraisal/id6834939837)
 - Projects: [github.com/innotelinc](https://github.com/innotelinc)
-- This project's Pages site: [innotelinc.github.io/mintmark](https://innotelinc.github.io/mintmark/)
 - Support: [support@innotel.us](mailto:support@innotel.us) · [mint.innotel.tech/support](https://mint.innotel.tech/support)
 
 The one rule specific to Mintmark: **it must never flatter a coin.**
