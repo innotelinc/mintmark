@@ -109,7 +109,7 @@
       backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--p-border);
     }
-    .topbar-inner { display: flex; align-items: center; gap: 18px; height: 60px; }
+    .topbar-inner { display: flex; align-items: center; gap: 18px; min-height: 60px; padding: 8px 0; }
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: .02em; color: var(--p-text); }
     .brand .mark {
       display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%;
@@ -196,7 +196,7 @@
     }
 
     /* facts strip */
-    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--p-border); border: 1px solid var(--p-border); border-radius: var(--radius-lg); overflow: hidden; margin: 56px 0 0; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 1px; background: var(--p-border); border: 1px solid var(--p-border); border-radius: var(--radius-lg); overflow: hidden; margin: 56px 0 0; }
     .fact { background: var(--p-surface); padding: 18px 20px; }
     .fact b { display: block; font-size: 14px; letter-spacing: .01em; margin-bottom: 4px; }
     .fact span { color: var(--p-text-muted); font-size: 13.5px; }
@@ -265,6 +265,25 @@
       .about { grid-template-columns: 1fr; }
       .topbar nav .hide-sm { display: none; }
     }
+
+    /* A phone keeps the bar on one row: the theme switch and the store button,
+       not the section links — those are the page's own anchors. */
+    @media (max-width: 720px) {
+      .topbar-inner { gap: 10px; }
+      .topbar nav { flex-wrap: nowrap; gap: 0; }
+      .topbar nav .nav-link { display: none; }
+      .topbar .cta { padding: 6px 12px; margin-left: 6px; font-size: 13px; }
+      .ot-theme button { padding: 4px 7px; font-size: 11px; }
+    }
+
+    /* The listing's header stacks: icon and name on one row, GET across the next. */
+    @media (max-width: 620px) {
+      .store-head { flex-wrap: wrap; gap: 14px; }
+      .store-icon { width: 72px; height: 72px; border-radius: 18px; order: 1; }
+      .store-id { order: 1; flex: 1 1 60%; }
+      .store-name { font-size: 19px; }
+      .store-get { order: 2; flex: 1 1 100%; width: 100%; text-align: center; }
+    }
   </style>
 </head>
 <body>
@@ -272,11 +291,11 @@
     <div class="wrap topbar-inner">
       <a class="brand" href="#top"><span class="mark">M</span>Mintmark</a>
       <nav>
-        <a href="#features">Features</a>
-        <a href="#how" class="hide-sm">How it works</a>
-        <a href="#surfaces" class="hide-sm">Surfaces</a>
-        <a href="#about-me" class="hide-sm">About</a>
-        <a href="https://github.com/innotelinc/mintmark/tree/main/docs">Docs</a>
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#how" class="nav-link hide-sm">How it works</a>
+        <a href="#surfaces" class="nav-link hide-sm">Surfaces</a>
+        <a href="#about-me" class="nav-link hide-sm">About</a>
+        <a href="https://github.com/innotelinc/mintmark/tree/main/docs" class="nav-link">Docs</a>
         <div class="ot-theme" role="group" aria-label="Colour theme" data-unity-switch><button type="button" data-theme-mode="system" aria-pressed="false">System</button><button type="button" data-theme-mode="light" aria-pressed="false">Light</button><button type="button" data-theme-mode="dark" aria-pressed="false">Dark</button></div>
         <a class="cta" href="https://apps.apple.com/us/app/mintmark-appraisal/id6834939837">App Store</a>
       </nav>
