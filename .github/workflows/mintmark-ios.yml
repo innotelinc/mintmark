@@ -244,6 +244,13 @@ jobs:
           if [ -n "$API_URL" ]; then
             grep -a -q "$API_URL" "$APP/main.jsbundle" || { echo "::error::the API origin $API_URL is not in the bundled JS"; exit 1; }
           fi
+          # supportsTablet is the only place the device family comes from, and Apple reads
+          # it from the binary: an iPhone-only family ships as an iPhone app and leaves the
+          # listing with no iPad slot, whatever the console offers.
+          FAMILIES=$(/usr/libexec/PlistBuddy -c "Print :UIDeviceFamily" "$APP/Info.plist" | tr -d '\n ' || true)
+          echo "device families: $FAMILIES"
+          case "$FAMILIES" in *2*) ;; *) echo "::error::the build does not declare the iPad family"; exit 1 ;; esac
+          echo "the archive installs on iPhone and iPad"
 
       - name: Export the .ipa
         env:

@@ -9,7 +9,8 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#f5f1e8",
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "us.inotel.mintmark",
       "buildNumber": "8",
       "infoPlist": {

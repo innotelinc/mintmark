@@ -10,9 +10,13 @@ is what App Store Connect asks for as of November 2026.
 | iPhone with Dynamic Island (medium display) | **1206 × 2622** (iPhone 18 Pro, 17 Pro, 16 Pro) or 1179 × 2556 (16, 15 Pro, 15) | **Required** — at least one |
 | iPhone with Dynamic Island (large display) | **1320 × 2868** (16/17/18 Pro Max, Air, 15/14 Pro Max, 16/15 Plus) | Optional, but supply it and the 6.5" set below stops being required |
 | iPhone with Face ID (large display) | 1284 × 2778 or 1242 × 2688 | Only required if you skip the large Dynamic Island set |
-| iPad 13-inch | 2064 × 2752 | No — this app has `supportsTablet: false` |
+| iPad 13-inch | 2064 × 2752 | **Required** — `supportsTablet` is on, so the listing has an iPad slot |
 
-So capture **two** sets: `1206 × 2622` and `1320 × 2868`. That satisfies the
+Because `app.json` sets `supportsTablet: true` the app installs on an iPad, and App
+Store Connect then refuses a version with no 13-inch iPad set. Capture **three** sets:
+`1206 × 2622`, `1320 × 2868` and `2064 × 2752` (iPad, portrait — the app is
+`requireFullScreen`, so there is no landscape variant to supply). The iPhone sizes
+satisfy the
 required slot and the large slot, and makes the 6.5" set unnecessary. Format is
 `.png`, `.jpg` or `.jpeg`, no alpha channel, 1–10 images per size per language.
 Landscape is the same numbers reversed; this app is portrait-only.
@@ -28,7 +32,8 @@ npx expo run:ios --device "iPhone 17 Pro"     # Xcode installs it on the 1206×2
 ```
 
 `iPhone 17 Pro` is the required size; run the same command with `--device
-"iPhone 17 Pro Max"` afterwards for the 1320 × 2868 set. Pointing at the live
+"iPhone 17 Pro Max"` afterwards for the 1320 × 2868 set, and with `--device
+"iPad Pro 13-inch (M4)"` for the 2064 × 2752 iPad set. Pointing at the live
 Worker matters: an empty collection or a "no key" notice is not a screenshot.
 
 Before each capture, tidy the status bar so it reads 9:41 with full bars:
