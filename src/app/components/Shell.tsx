@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { KeyRound, Menu as MenuIcon, Plus, Settings as SettingsIcon, X } from 'lucide-react'
+import { Apple, KeyRound, Menu as MenuIcon, Plus, Settings as SettingsIcon, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 
-import { BRAND } from '../../shared/config'
+import { APP_STORE_URL, BRAND } from '../../shared/config'
 import type { AppraisalSummary } from '../../shared/types'
 import { useAppraisals, useAppState } from '../lib/api'
 import { cx } from '../lib/cx'
@@ -72,6 +72,16 @@ export function Shell() {
           </Button>
           <Logo size={22} />
           <span className="flex-1" />
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="grid size-9 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg"
+            aria-label="Mintmark on the iPhone App Store"
+            title="Mintmark on the iPhone App Store"
+          >
+            <Apple className="size-4" />
+          </a>
           <NavLink to="/settings" className="grid size-9 place-items-center rounded-control text-muted hover:bg-surface-2 hover:text-fg" aria-label="Settings">
             <SettingsIcon className="size-4" />
           </NavLink>
@@ -160,6 +170,16 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
             <KeyRound className="size-4" />
           </NavLink>
         </div>
+        {/* A browser visitor's way to the iPhone app — quiet, in the chrome, never on the capture screen. */}
+        <a
+          href={APP_STORE_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 flex items-center gap-1.5 rounded-control px-2 py-1.5 text-[11.5px] text-faint transition-colors hover:bg-surface hover:text-fg"
+        >
+          <Apple className="size-3.5 shrink-0" />
+          Also on the iPhone App Store
+        </a>
       </div>
     </>
   )
