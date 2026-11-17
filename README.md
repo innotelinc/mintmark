@@ -1,14 +1,80 @@
-# Mintmark
+<div align="center">
 
-Photograph the front of a coin and get an appraisal: what it is, how worn it
-is, and what a collector would pay — with the reasons and the checks that would
-confirm it.
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-It runs on Freebuff Sites with D1 for the collection. There is no sign-in: the
-app is open, and each visitor's coins are kept under an anonymous id, so a
-collection survives a change of address and two phones do not share one.
-The vision key stays on the server, pasted in the admin panel or set as an
-environment variable.
+# 🪙 Mintmark — Coin Appraisal
+
+**Photograph the front of a coin and get an appraisal: what it is, how worn it is, and what a collector would pay — with the reasons and the checks that would confirm it.**
+One photo in, one careful dealer's answer out: identification, a Sheldon grade,
+a collector-market value range, the drivers behind it, visible red flags, and what
+to photograph next. Live in the browser at `mint.innotel.tech` and on the App Store
+as **Mintmark Appraisal**.
+
+[![CI](https://github.com/innotelinc/mintmark/actions/workflows/ci.yml/badge.svg)](https://github.com/innotelinc/mintmark/actions/workflows/ci.yml)
+[![Theme: Unity](https://img.shields.io/badge/theme-Unity-6366f1)](https://github.com/innotelinc/innotel-platform-stack/blob/main/standards/unity/README.md)
+[![App Store](https://img.shields.io/badge/App%20Store-live-0b7a3b?logo=apple&logoColor=white)](https://apps.apple.com/us/app/mintmark-appraisal/id6834939837)
+[![Version](https://img.shields.io/badge/version-1.0.0%20(build%208)-informational)](#the-iphone-app)
+
+</div>
+
+---
+
+## Why Mintmark
+
+| Problem | Mintmark answer |
+| --- | --- |
+| Coin apps flatter the coin and quote a catalogue headline | The appraiser is told to be conservative: a worn common coin comes back worth cents, and empty fields instead of a guessed date or mint mark |
+| A price with no reasoning is unfalsifiable | Every appraisal carries its drivers, its red flags, and 2–4 concrete things to photograph next |
+| Grading needs photos of surfaces nobody sends | It grades what the obverse actually shows, and says what the photo cannot prove |
+| "Sign up to see your results" | No account, no sign-in, no in-app purchase; a collection is keyed to an anonymous id |
+| Photos disappearing into someone else's model account | The vision key stays server-side and the call goes through the estate's own gateway |
+
+> **About Mintmark** — a coin appraisal from a single photo, for collectors and for
+> people who found a coin in a drawer. It identifies the coin, grades it on the
+> Sheldon 1–70 scale, and returns a collector-market value range in USD with the
+> reasoning attached — on the web at **`mint.innotel.tech`** and as a free iPhone
+> app. **Landing page:** [innotelinc.github.io/mintmark](https://innotelinc.github.io/mintmark/)
+
+---
+
+## About me
+
+I am **Darnel Hunter**, and I build the Innotel platform behind these products:
+identity, storage, billing, media, mail and the edge that fronts them. Mintmark is
+one of the products on top of it, and the smallest complete one — a real appraisal
+engine, a collection, a privacy page and a native app, with no account system to
+hide behind.
+
+I write software the way I would want to inherit it: the standard spelled out in
+one place, the theme shared rather than reinvented per project, the deployment
+reproducible from a compose file, and the docs honest about what a check did and
+did not verify. This repository follows that pattern — the estate's README shape,
+the [Unity theme](https://github.com/innotelinc/innotel-platform-stack/blob/main/standards/unity/README.md),
+the attribution guards, a Pages landing page, and `compose.selfhost.yml` for the
+box that serves it.
+
+- Projects: [github.com/innotelinc](https://github.com/innotelinc)
+- This project's Pages site: [innotelinc.github.io/mintmark](https://innotelinc.github.io/mintmark/)
+- Support: [support@innotel.us](mailto:support@innotel.us) · [mint.innotel.tech/support](https://mint.innotel.tech/support)
+
+The one rule specific to Mintmark: **it must never flatter a coin.**
+
+## ✨ Features
+
+- **Identification** — country, denomination, design, year, mint mark and visible
+  variety, with empty fields where the photo does not show a detail.
+- **Grade** — Sheldon 1–70 plus the adjectival name, judged on the photograph.
+- **Value range** — collector-market USD at that grade, low and high, clamped
+  server-side (`low ≤ high`, no value when the coin is unidentified).
+- **Drivers, red flags, next checks** — the value's components, visible cleaning
+  or damage or a cast fake, and what to photograph next.
+- **A collection** — every appraisal with its photo and thumbnail, per anonymous
+  visitor id; delete one or all.
+- **Web and native from one API** — the Vite/React app and the Expo iOS app call
+  the same `/api/appraisals`.
+- **The key never reaches a browser** — pasted into `/admin` (stored in the
+  database) or set as `MINTMARK_API_KEY`; only a mask like `sk-…80ad` is ever sent
+  to a client.
 
 ## How an appraisal works
 
@@ -19,9 +85,9 @@ environment variable.
    schema-constrained JSON, so the reply is an object rather than prose.
 3. The reply is validated and clamped server-side (confidence 0–1, grade 1–70,
    low ≤ high, no value when unidentified) before it is stored.
-4. The appraisal, its photo and a thumbnail go into D1, scoped to that visitor's
-   anonymous id — a signed cookie in a browser, the id a native build keeps on
-   the device. Only a successful appraisal counts against the daily limit.
+4. The appraisal, its photo and a thumbnail go into the store, scoped to that
+   visitor's anonymous id — a signed cookie in a browser, the id a native build
+   keeps on the device. Only a successful appraisal counts against the limit.
 
 ## Run it
 
@@ -37,7 +103,7 @@ page explains what is missing; the app unlocks on its own once a key is saved.
 ## Admin
 
 `/admin` (also the key icon at the bottom of the sidebar) holds the deployment's
-settings, and they live in D1 so changing them needs no redeploy:
+settings, and they live in the database so changing them needs no redeploy:
 
 - **Gateway key** — pasted, checked against `GET /v1/models` before it is saved,
   then stored server-side. Only a mask like `sk-…80ad` is ever sent to a browser.
@@ -49,8 +115,8 @@ settings, and they live in D1 so changing them needs no redeploy:
   `MINTMARK_BASE_URL`.
 
 There is no authentication in front of `/admin`, because the app has no
-accounts. Deploy it for personal use, or put the site behind Cloudflare Access
-if it should not be public.
+accounts. Run it for personal use, or put the site behind the estate's SSO if it
+should not be public.
 
 ## The gateway and its key
 
@@ -64,9 +130,9 @@ verifies it, bills it, and routes the request to a vision model.
 - Locally it lives in `.env` (see `.env.example`), which Git ignores and
   Wrangler reads. Do not add a `.dev.vars` file: when one exists, Wrangler stops
   reading `.env`.
-- On Freebuff Sites, set `MINTMARK_API_KEY` in Sites → Secrets as a fallback, or
-  paste the key in `/admin` after the first deploy. A key saved in the panel
-  wins over the environment variable.
+- In a hosted or self-hosted deployment, set `MINTMARK_API_KEY` in the
+  environment or paste the key in `/admin` after the first deploy. A key saved in
+  the panel wins over the environment variable.
 - `MINTMARK_MODEL` picks the model. Ids take the form `<provider>/<model>`.
 
 **The catalogue is not the routing table.** `GET /v1/models` lists far more ids
@@ -116,80 +182,27 @@ origin serves that name itself. A fresh database seeds `require_key = 0`, matchi
 the free appraisals the hosted deployment offered; a key pasted into `/admin` still
 wins over the environment. Rebuild and `docker restart mintmark-web` to ship a change.
 
-## The older Freebuff Sites deployment
+The name is also pinned in the estate's `scripts/edge-vhost-targets.tsv` on the
+edge, so `check-edge-vhost-targets.py` fails if the box stops answering and
+`check-edge-vhost-pins.py` fails if the proxy row drifts from the pin.
 
-Still published, no longer what the public name resolves to. Its own origin is
-`https://site-14e683b8ff8e42ea8147b66b91f8a10a.freebuff.page`, and the friendly
-name is served through the innotel edge (see below). D1 `DB` and the
-`MINTMARK_API_KEY` secret are attached to the site, and the repository variable
-`MINTMARK_API_URL` in `innotelinc/mintmark` points at the friendly name, so iOS
-builds bake in the same origin.
+## The iPhone app
 
-1. `sites_create`, then `sites_add_storage` for D1 named `DB`.
-2. `npm run build`, then `sites_deploy` with `deploy.json`.
-3. Attach the key with Sites → Secrets (`MINTMARK_API_KEY`), then deploy once
-   more: a secret reaches the running Worker only with a new version. Pasting
-   the key in `/admin` instead needs no redeploy, because it lives in D1.
+*Mintmark Appraisal* is **live on the App Store** — free, no accounts, no in-app
+purchases:
 
-### The public name
+<https://apps.apple.com/us/app/mintmark-appraisal/id6834939837>
 
-The managed edge answers its own hostname only and holds no certificate for
-foreign names, so `mint.innotel.tech` is terminated on the innotel edge rather
-than attached to the site:
+| | |
+| --- | --- |
+| App Store name | `Mintmark Appraisal` |
+| Bundle id / SKU | `us.inotel.mintmark` / `mintmark` |
+| Version / build | **1.0.0 / 8** (approved 16 November 2026, on sale the same day) |
+| Categories | Reference (primary), Utilities (secondary) |
+| Privacy / support / marketing URLs | `mint.innotel.tech/privacy`, `/support`, `mint.innotel.tech` |
 
-- `mint.innotel.tech` is a `CNAME` to `innotel.tech` in Technitium, the same
-  shape as `gateway.telno.services`.
-- Nginx Proxy Manager (proxy host 325) holds the Let's Encrypt certificate and
-  forwards to the site origin with `Host` and `proxy_ssl_name` pinned to it. The
-  pinned `Host` has to sit inside `location /`: NPM re-includes
-  `conf.d/include/proxy.conf` there, which sets `Host $host` and wins over a
-  server-level override.
-- The browser therefore announces `https://mint.innotel.tech` while the Worker
-  sees its own origin, so that name is listed in `PUBLIC_ORIGINS` in
-  `src/worker/http.ts`. Changing it needs a rebuild and a deploy; a mutation
-  from an unlisted origin is still refused with 403.
-- Proxied traffic reaches the Worker from the edge's address, so identity cannot
-  come from it: browsers are given a signed cookie and native builds send their
-  stored device id. The address hash is only the fallback for a client that
-  presents neither.
-
-`scripts/edge/` holds the idempotent scripts for this: `mint-dns.py`
-(Technitium; dry run unless given `--apply`), `mint-npm.py --apply` (certificate
-and proxy host) and `mint-vhost.py` (the `Host` pin — re-run it after editing
-that host in the NPM UI, which rewrites the file).
-
-## Where things are
-
-- `src/shared/config.ts`: name, the appraiser's instructions, the JSON schema,
-  the gateway URL and default model, `DAILY_APPRAISAL_LIMIT` and the size caps.
-- `src/worker/vision.ts`: the gateway request, error mapping, the key check, and
-  the validation/clamping of the reply (`normalize`). `gateway.ts` resolves which
-  key and model to use; `visitor.ts` decides who is asking (signed cookie, device
-  id, or address hash) and `http.ts` holds the same-origin guard.
-- `src/worker/routes/appraisals.ts`: create, list, read, delete one and delete
-  all. `routes/state.ts` serves `/api/state`; `routes/admin.ts` saves the key and
-  the access toggle. `db.ts` owns the schema (created on first request), the
-  settings table and the usage count.
-- `src/app/pages/Capture.tsx`: drop zone, camera, paste, note and the appraise
-  button. `Admin.tsx`: key and access. `Settings.tsx`: usage, connections and
-  delete-everything. `AppraisalView.tsx`: the value card, grade scale, drivers,
-  checks and red flags.
-- `src/app/lib/image.ts`: the client-side downscale. `lib/api.ts`: queries and
-  mutations. `components/Shell.tsx`: the collection sidebar.
-- `src/styles.css`: warm paper, ink and brass tokens, plus `.label-caps` (small
-  museum labels) and `.coin-photo` (the table the coin sits on).
-
-## What this is not
-
-One photo of the obverse cannot prove authenticity, metal, weight or grade. The
-app says so on every result: ranges widen when the model is unsure, common worn
-coins come back worth cents, and it suggests what to photograph next. It is not
-a professional grading and not an offer to buy.
-
-## iOS app
-
-`mobile/` is a native Expo app with the same flow: camera or photo library,
-the same appraisal screen, the same `/api` endpoints. It holds no gateway key.
+`mobile/` is a native Expo app with the same flow: camera or photo library, the
+same appraisal screen, the same `/api` endpoints. It holds no gateway key.
 
 It is built and shipped to TestFlight by GitHub Actions on a macOS runner — no
 Mac and no EAS account needed. `mobile/README.md` has the one-time App Store
@@ -215,6 +228,39 @@ is a one-shot workflow to drop into sage: it reads the six values there and writ
 them into `innotelinc/mintmark` with a fine-grained token, printing only names and
 lengths. See its header for the three setup steps.
 
+## Documentation
+
+| Doc | What it covers |
+| --- | --- |
+| [docs/stack.md](docs/stack.md) | Mintmark's role in the Innotel Platform Stack — owns / provides / consumes |
+| [RUNBOOK.md](RUNBOOK.md) | Operating the `mintmark-web` stack: rebuild, key rotation, backups, rollback |
+| [mobile/README.md](mobile/README.md) | iOS build, App Store Connect setup, repository secrets |
+| [mobile/STORE-LISTING.md](mobile/STORE-LISTING.md) | The App Store listing copy, limits and submission record |
+| [Landing page](https://innotelinc.github.io/mintmark/) | `web/landing/` — the Unity-themed project page |
+
+## Repo layout
+
+```
+mintmark/
+├── src/                      # The web app: shared config, worker routes, React pages
+├── server/selfhost.mjs       # Node adapter: D1 + static ASSETS bindings for our own box
+├── compose.selfhost.yml      # The deployment (declared, not remembered)
+├── Dockerfile.selfhost       # Image: build the site, run it under Node
+├── web/landing/              # Static GitHub Pages landing page + Unity theme
+├── mobile/                   # Expo iOS app, store listing, icon scripts
+├── docs/                     # Architecture and stack role
+├── .github/workflows/        # CI, attribution guard, Pages, iOS build, screenshots
+├── .githooks/                # Attribution guard (commit-msg, pre-commit, guard-lib)
+└── .env.example              # Environment template
+```
+
+## What this is not
+
+One photo of the obverse cannot prove authenticity, metal, weight or grade. The
+app says so on every result: ranges widen when the model is unsure, common worn
+coins come back worth cents, and it suggests what to photograph next. It is not
+a professional grading and not an offer to buy.
+
 ## Security notes
 
 There is no sign-in and no session: the only cookie is an anonymous
@@ -222,7 +268,25 @@ HMAC-signed id that keys a visitor's own collection and daily allowance, so
 there is nothing cross-site to ride on. Mutations that announce an `Origin` must
 match the site's own origin or its public name (`PUBLIC_ORIGINS` in
 `src/worker/http.ts`). Queries are scoped by that id, never by an id from the
-client, and no raw address is stored. The Worker only accepts JPEG/PNG/WebP data URLs under 2 MB,
-caps the note at 240 characters, allows one appraisal in flight per visitor, and
-answers with `Cache-Control: private, no-store`. Keys are stored in D1 and only
-ever leave the Worker towards the gateway.
+client, and no raw address is stored. The Worker only accepts JPEG/PNG/WebP data
+URLs under 2 MB, caps the note at 240 characters, allows one appraisal in flight
+per visitor, and answers with `Cache-Control: private, no-store`. Keys are stored
+server-side and only ever leave the Worker towards the gateway; `MINTMARK_API_KEY`
+lives in the host environment (`/root/mintmark-web.env`, mode 600) and is never
+committed.
+
+## License
+
+Mintmark is licensed under the MIT License. See [LICENSE](LICENSE) for the full text.
+
+*Mintmark — coin appraisal from a photo. © 2026 Innotel Inc.*
+
+## 🏛️ Platform stack
+
+Mintmark is a product app in the
+[**Innotel Platform Stack**](https://github.com/innotelinc/innotel-platform-stack) —
+the canonical single-responsibility architecture where Authentik owns identity,
+Cerulean Vault owns secrets, Cerulean owns trust, ONYX owns storage, Magnate owns
+revenue, NPM Edge owns the edge, and every other platform is a business function
+that consumes them. See [docs/stack.md](docs/stack.md) for this product's
+owns/consumes boundaries.

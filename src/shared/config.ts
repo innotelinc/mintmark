@@ -6,6 +6,16 @@ export const BRAND = 'Mintmark'
 export const TAGLINE = 'Photograph a coin. Learn what collectors would pay.'
 
 /**
+ * The shipped release this website accompanies. Build 8 is what went on sale on
+ * the App Store on 2026-11-16; bump both fields together when a new build ships,
+ * and keep mobile/app.json in step.
+ */
+export const APP_VERSION = '1.0.0'
+export const APP_BUILD = '8'
+/** The live store listing, so the app and the site point at one place. */
+export const APP_STORE_URL = 'https://apps.apple.com/us/app/mintmark-appraisal/id6834939837'
+
+/**
  * The gateway that reads the photos. It is an OmniRoute deployment on the
  * OpenAI-compatible `/v1` surface, so the app holds one Mintmark key (sold
  * through Magnate) instead of a provider key: the gateway verifies the key and

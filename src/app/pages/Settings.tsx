@@ -2,7 +2,7 @@ import { ArrowRight, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
-import { DAILY_APPRAISAL_LIMIT, VISION_MODEL_LABEL } from '../../shared/config'
+import { APP_BUILD, APP_STORE_URL, APP_VERSION, DAILY_APPRAISAL_LIMIT, VISION_MODEL_LABEL } from '../../shared/config'
 import { Badge, Button, ConfirmDialog, useToast } from '../components/ui'
 import { useAppState, useDeleteAllAppraisals } from '../lib/api'
 import { untilLabel } from '../lib/format'
@@ -94,6 +94,24 @@ export function Settings() {
             <Button variant="danger" onClick={() => setConfirm(true)}>
               Delete
             </Button>
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="label-caps">About</h2>
+          <div className="mt-3 rounded-card border border-line bg-surface p-4 shadow-card">
+            <p className="text-[13.5px] font-medium">
+              Mintmark {APP_VERSION} · build {APP_BUILD}
+            </p>
+            <p className="mt-1 text-[12.5px] text-faint">Coin appraisal from a photo — free, no account.</p>
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block text-[12.5px] text-accent hover:underline"
+            >
+              Mintmark Appraisal on the App Store
+            </a>
           </div>
         </section>
       </div>

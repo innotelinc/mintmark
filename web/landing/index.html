@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mintmark — coin appraisal from a photo</title>
+  <meta name="description" content="Photograph the front of a coin and get an appraisal: what it is, how worn it is, and what a collector would pay — with the reasons and the checks that would confirm it. Free on the App Store.">
+  <meta property="og:title" content="Mintmark — coin appraisal from a photo">
+  <meta property="og:description" content="One photo in, one appraisal out: identification, grade and a collector-market value range, free on the App Store and in the browser.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://innotelinc.github.io/mintmark/">
+  <meta name="theme-color" content="#0f1216">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f1216'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%23c9a227' stroke-width='3'/%3E%3Ctext x='32' y='40' font-size='20' text-anchor='middle' fill='%23c9a227' font-family='Georgia,serif'%3EM%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="unity-theme.css">
+  <script>window.UNITY_DEFAULT_SCHEME = "operations";</script>
+  <script src="unity-theme.js"></script>
+  <style>
+    /* Mintmark wears Unity: every colour below is a token, never a literal. */
+    :root {
+      --p-bg: var(--canvas);
+      --p-bg-elevated: var(--surface-muted);
+      --p-surface: var(--surface);
+      --p-surface-hover: var(--surface-sunken);
+      --p-border: var(--line);
+      --p-text: var(--ink);
+      --p-text-secondary: var(--ink-soft);
+      --p-text-muted: var(--ink-faint);
+      --p-accent: var(--brand);
+      --p-accent-hover: var(--brand-ring);
+      --p-accent-tint: var(--brand-soft);
+      --p-success: var(--ok);
+      --p-warning: var(--attention);
+      --p-danger: var(--bad);
+      --radius-md: var(--radius);
+      --ease: cubic-bezier(.2, .8, .2, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--p-bg);
+      color: var(--p-text);
+      font-family: var(--font-sans), ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: var(--p-accent-tint); }
+    a { color: var(--p-accent); text-decoration: none; }
+    a:hover { color: var(--p-accent-hover); }
+    code, pre { font-family: var(--mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    /* top bar */
+    .topbar {
+      position: sticky; top: 0; z-index: 10;
+      background: color-mix(in srgb, var(--canvas) 78%, transparent);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--p-border);
+    }
+    .topbar-inner { display: flex; align-items: center; gap: 18px; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: .02em; color: var(--p-text); }
+    .brand .mark {
+      display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%;
+      border: 1.5px solid var(--coin); color: var(--coin);
+      font-family: var(--font-display, Georgia, serif); font-size: 14px;
+    }
+    .topbar nav { margin-left: auto; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+    .topbar nav a {
+      color: var(--p-text-secondary); padding: 6px 11px; border-radius: var(--radius-sm); font-size: 14px;
+      transition: color .15s var(--ease), background .15s var(--ease);
+    }
+    .topbar nav a:hover { color: var(--p-text); background: var(--p-surface-hover); }
+    .topbar .cta {
+      border: 1px solid var(--p-border); border-radius: var(--radius-md);
+      padding: 7px 14px; color: var(--p-text); font-size: 14px; margin-left: 8px;
+      transition: border-color .15s var(--ease), background .15s var(--ease);
+    }
+    .topbar .cta:hover { border-color: var(--p-accent); background: var(--p-accent-tint); color: var(--p-text); }
+
+    /* hero */
+    .hero { position: relative; overflow: hidden; padding: 88px 0 64px; }
+    .hero::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(620px 320px at 72% -10%, color-mix(in srgb, var(--coin) 12%, transparent), transparent 70%),
+        radial-gradient(520px 300px at 12% 110%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 70%);
+    }
+    .hero-inner { position: relative; max-width: 780px; }
+    .kicker {
+      display: inline-flex; align-items: center; gap: 9px;
+      font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--p-accent-hover);
+      background: var(--p-accent-tint);
+      border: 1px solid color-mix(in srgb, var(--brand) 25%, transparent);
+      border-radius: var(--radius-pill);
+      padding: 5px 14px; margin: 0 0 22px;
+    }
+    .kicker .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--p-success); }
+    h1 {
+      font-size: clamp(2.1rem, 5.2vw, 3.3rem); line-height: 1.08; letter-spacing: -.02em;
+      font-family: var(--font-display), Georgia, serif; margin: 0 0 18px;
+    }
+    .lede { font-size: clamp(1rem, 2vw, 1.16rem); color: var(--p-text-secondary); margin: 0 0 30px; max-width: 62ch; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 12px 20px; border-radius: var(--radius-md);
+      font-weight: 600; font-size: 15px; border: 1px solid transparent;
+      transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
+    }
+    .btn--primary { background: var(--p-accent); color: var(--brand-ink); }
+    .btn--primary:hover { background: var(--p-accent-hover); color: var(--brand-ink); }
+    .btn--quiet { border-color: var(--p-border); color: var(--p-text); background: var(--p-surface); }
+    .btn--quiet:hover { border-color: var(--p-accent); background: var(--p-accent-tint); color: var(--p-text); }
+    .actions small { color: var(--p-text-muted); font-size: 13px; }
+
+    /* facts strip */
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--p-border); border: 1px solid var(--p-border); border-radius: var(--radius-lg); overflow: hidden; margin: 56px 0 0; }
+    .fact { background: var(--p-surface); padding: 18px 20px; }
+    .fact b { display: block; font-size: 14px; letter-spacing: .01em; margin-bottom: 4px; }
+    .fact span { color: var(--p-text-muted); font-size: 13.5px; }
+
+    /* sections */
+    section { padding: 72px 0; border-top: 1px solid var(--p-border); }
+    h2 { font-size: clamp(1.5rem, 3.4vw, 2.1rem); letter-spacing: -.015em; margin: 0 0 8px; font-family: var(--font-display), Georgia, serif; }
+    h2 .accent { color: var(--p-accent); }
+    .section-sub { color: var(--p-text-secondary); margin: 0 0 34px; max-width: 68ch; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(264px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--p-surface); border: 1px solid var(--p-border);
+      border-radius: var(--radius-lg); padding: 22px;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 15.5px; display: flex; align-items: center; gap: 9px; }
+    .card h3 .glyph { color: var(--coin); font-size: 16px; }
+    .card p { margin: 0; color: var(--p-text-muted); font-size: 14.5px; }
+
+    /* steps */
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; counter-reset: step; }
+    .step { background: var(--p-surface); border: 1px solid var(--p-border); border-radius: var(--radius-lg); padding: 22px; position: relative; }
+    .step::before {
+      counter-increment: step; content: counter(step);
+      display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+      background: var(--p-accent-tint); color: var(--p-accent-hover);
+      font-size: 13px; font-weight: 700; margin-bottom: 12px;
+    }
+    .step b { display: block; margin-bottom: 6px; font-size: 15px; }
+    .step p { margin: 0; color: var(--p-text-muted); font-size: 14.5px; }
+
+    /* surfaces */
+    .surfaces { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+    .surface {
+      display: block; background: var(--p-surface); border: 1px solid var(--p-border);
+      border-radius: var(--radius-lg); padding: 18px 20px; color: var(--p-text);
+      transition: border-color .15s var(--ease), transform .15s var(--ease);
+    }
+    .surface:hover { border-color: var(--p-accent); color: var(--p-text); transform: translateY(-2px); }
+    .surface b { display: block; font-size: 15px; margin-bottom: 3px; }
+    .surface small { color: var(--p-text-muted); font-size: 13.5px; }
+    .surface .live {
+      float: right; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--p-success); background: var(--ok-soft); border-radius: var(--radius-pill); padding: 2px 9px;
+    }
+
+    /* about */
+    .about { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+    .about p { color: var(--p-text-secondary); margin: 0 0 14px; }
+    .about dl { margin: 0; background: var(--p-surface); border: 1px solid var(--p-border); border-radius: var(--radius-lg); padding: 20px; }
+    .about dt { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--p-text-muted); margin-bottom: 3px; }
+    .about dd { margin: 0 0 14px; font-size: 14.5px; }
+    .about dd:last-child { margin-bottom: 0; }
+
+    /* footer */
+    footer { border-top: 1px solid var(--p-border); background: var(--p-bg-elevated); }
+    .foot-inner { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 24px 0; color: var(--p-text-muted); font-size: 13.5px; }
+    .foot-links { display: flex; flex-wrap: wrap; gap: 16px; }
+    .foot-credits { color: var(--p-text-muted); font-size: 12.5px; padding: 0 0 26px; margin: 0; line-height: 2; }
+    .foot-credits a { color: var(--p-text-secondary); }
+
+    .build { color: var(--p-text-muted); font-size: 12.5px; }
+    .build code { color: var(--p-text-secondary); }
+
+    @media (max-width: 760px) {
+      .about { grid-template-columns: 1fr; }
+      .topbar nav .hide-sm { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#top"><span class="mark">M</span>Mintmark</a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#how" class="hide-sm">How it works</a>
+        <a href="#surfaces" class="hide-sm">Surfaces</a>
+        <a href="#about-me" class="hide-sm">About</a>
+        <a href="https://github.com/innotelinc/mintmark/tree/main/docs">Docs</a>
+        <div class="ot-theme" role="group" aria-label="Colour theme" data-unity-switch><button type="button" data-theme-mode="system" aria-pressed="false">System</button><button type="button" data-theme-mode="light" aria-pressed="false">Light</button><button type="button" data-theme-mode="dark" aria-pressed="false">Dark</button></div>
+        <a class="cta" href="https://apps.apple.com/us/app/mintmark-appraisal/id6834939837">App Store</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" style="border-top:none">
+      <div class="wrap hero-inner">
+        <p class="kicker"><span class="pulse"></span>v1.0.0 · build 8 · live on the App Store</p>
+        <h1>Photograph a coin.<br>Learn what collectors would pay.</h1>
+        <p class="lede">
+          Mintmark reads one photo of the obverse and answers like a careful dealer: what the coin
+          is, how worn it is, and a collector-market value range — with the drivers behind the
+          number, the red flags it can see, and what to photograph next to confirm it.
+        </p>
+        <div class="actions">
+          <a class="btn btn--primary" href="https://apps.apple.com/us/app/mintmark-appraisal/id6834939837">Download on the App Store</a>
+          <a class="btn btn--quiet" href="https://mint.innotel.tech">Open the web app</a>
+          <a class="btn btn--quiet" href="https://github.com/innotelinc/mintmark">GitHub</a>
+          <small>Free · no account · no in-app purchases</small>
+        </div>
+
+        <div class="facts">
+          <div class="fact"><b>One photo in</b><span>Camera, library or paste — JPEG, PNG or WebP</span></div>
+          <div class="fact"><b>Grade on the 1–70 scale</b><span>With the adjectival grade named</span></div>
+          <div class="fact"><b>Value, not a headline</b><span>A worn common coin comes back worth cents</span></div>
+          <div class="fact"><b>Private by default</b><span>No sign-in; your collection is yours</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap">
+        <h2>What it tells you<span class="accent">.</span></h2>
+        <p class="section-sub">The appraisal is the whole product, so it says more than a price: it shows its reasoning and the parts it is unsure about.</p>
+        <div class="cards">
+          <div class="card"><h3><span class="glyph">◎</span>Identification</h3><p>Country, denomination, design, year, mint mark and visible variety — empty fields when a detail is not legible, rather than a guess.</p></div>
+          <div class="card"><h3><span class="glyph">◑</span>Grade and condition</h3><p>A Sheldon 1–70 grade with the adjectival name, judged on what the photograph actually shows.</p></div>
+          <div class="card"><h3><span class="glyph">＄</span>Value range</h3><p>Low and high in collector-market USD at that grade: roughly dealer-buy to fair retail, not a catalogue headline.</p></div>
+          <div class="card"><h3><span class="glyph">⚑</span>Drivers and red flags</h3><p>What makes up the value — key date, mintage, metal, demand — and visible cleaning, damage, corrosion or a cast fake.</p></div>
+          <div class="card"><h3><span class="glyph">⌕</span>Next checks</h3><p>Concrete things to look at or photograph next: reverse design, mint-mark position, edge, weight and diameter.</p></div>
+          <div class="card"><h3><span class="glyph">▣</span>Your collection</h3><p>Every appraisal is kept with its photo and thumbnail, under an anonymous id, so a collection survives a change of phone.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <div class="wrap">
+        <h2>How an appraisal happens<span class="accent">.</span></h2>
+        <p class="section-sub">The photo never leaves the estate's own gateway, and the key that pays for the vision call stays on the server.</p>
+        <div class="steps">
+          <div class="step"><b>The photo is prepared</b><p>The app scales it to a 1280px long edge, encodes JPEG, and sends it with an optional note.</p></div>
+          <div class="step"><b>The server checks it</b><p>Image type and size, one appraisal in flight per visitor, and the daily allowance — so a refused request costs nothing.</p></div>
+          <div class="step"><b>The model answers in JSON</b><p>The gateway is asked for schema-constrained output, so the reply is an object rather than prose to parse.</p></div>
+          <div class="step"><b>The reply is clamped</b><p>Confidence 0–1, grade 1–70, low ≤ high, no value when unidentified — validated before anything is stored.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="surfaces">
+      <div class="wrap">
+        <h2>Where it runs<span class="accent">.</span></h2>
+        <p class="section-sub">One website, one iPhone app, one API — the same appraisal behind each.</p>
+        <div class="surfaces">
+          <a class="surface" href="https://apps.apple.com/us/app/mintmark-appraisal/id6834939837"><span class="live">live</span><b>iPhone</b><small>Mintmark Appraisal on the App Store · v1.0.0, build 8</small></a>
+          <a class="surface" href="https://mint.innotel.tech"><span class="live">live</span><b>Web app</b><small>mint.innotel.tech · camera, library or paste</small></a>
+          <a class="surface" href="https://mint.innotel.tech/privacy"><b>Privacy</b><small>mint.innotel.tech/privacy · what is stored, and for how long</small></a>
+          <a class="surface" href="https://mint.innotel.tech/support"><b>Support</b><small>mint.innotel.tech/support · the App Store support URL</small></a>
+          <a class="surface" href="https://github.com/innotelinc/mintmark"><b>Source</b><small>github.com/innotelinc/mintmark · the web app and the API</small></a>
+          <a class="surface" href="https://innotelinc.github.io/mintmark/"><span class="live">this page</span><b>Landing page</b><small>innotelinc.github.io/mintmark</small></a>
+        </div>
+      </div>
+    </section>
+
+    <section id="about-me">
+      <div class="wrap about">
+        <div>
+          <h2>About me<span class="accent">.</span></h2>
+          <p>
+            I am Darnel Hunter, and I build the Innotel platform: identity, storage, billing,
+            media, mail, the edge that fronts all of it — and the products on top. Mintmark is one
+            of those products, and it is the smallest complete one: it has a real appraisal engine,
+            a collection, a privacy page and a native app, with no account system to hide behind.
+          </p>
+          <p>
+            I write the software the way I would want an operator to inherit it: the standard
+            spelled out in one place, the theme shared instead of reinvented per project, the
+            deployment reproducible from a compose file, and the docs honest about what a check
+            did and did not verify. This repository is an example of that — the same README shape,
+            the same Unity theme and the same guards as every other project in the estate.
+          </p>
+          <p>
+            The rule I keep for Mintmark specifically: it must never flatter a coin. A worn common
+            coin should come back worth cents, and the app should say what it cannot see.
+          </p>
+          <p class="build">This page: <code>v1.0.0</code> · build <code>8</code> · <span id="build-time">served from the estate edge</span></p>
+        </div>
+        <dl>
+          <dt>Projects</dt>
+          <dd><a href="https://github.com/innotelinc">github.com/innotelinc</a></dd>
+          <dt>Pages / this site</dt>
+          <dd><a href="https://innotelinc.github.io/mintmark/">innotelinc.github.io/mintmark</a></dd>
+          <dt>Support</dt>
+          <dd><a href="mailto:support@innotel.us">support@innotel.us</a></dd>
+          <dt>App Store</dt>
+          <dd><a href="https://apps.apple.com/us/app/mintmark-appraisal/id6834939837">Mintmark Appraisal · id6834939837</a></dd>
+          <dt>Web app</dt>
+          <dd><a href="https://mint.innotel.tech">mint.innotel.tech</a></dd>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot-inner">
+      <span>Mintmark — coin appraisal from a photo · Innotel Labs</span>
+      <span class="foot-links">
+        <a href="https://github.com/innotelinc/mintmark">GitHub</a>
+        <a href="https://innotelinc.github.io/mintmark">Pages</a>
+        <a href="https://github.com/innotelinc/mintmark/tree/main/docs">Docs</a>
+        <a href="https://apps.apple.com/us/app/mintmark-appraisal/id6834939837">App Store</a>
+        <a href="https://mint.innotel.tech">mint.innotel.tech</a>
+      </span>
+    </div>
+    <p class="foot-credits wrap">Innotel Platform — <a href="https://innotelinc.github.io/cerulean/">Cerulean</a> (Trust) · <a href="https://innotelinc.github.io/onyx/">ONYX</a> (Storage) · <a href="https://innotelinc.github.io/magnate/">Magnate</a> (Revenue) · <a href="https://github.com/innotelinc/npm">NPM Edge</a> · <a href="https://innotelinc.github.io/monarch/">Monarch</a> (MediaOps) · <a href="https://innotelinc.github.io/zeus/">Zeus</a> (VoiceOps) · <a href="https://innotelinc.github.io/oasis/">Oasis</a> (MailOps) · <a href="https://innotelinc.github.io/signara/">Signara</a> (DocumentOps) · <a href="https://innotelinc.github.io/rizzaura/">Rizz Aura</a> (CommunityOps) · <a href="https://innotelinc.github.io/capstone/">Capstone</a> (AgentOps) · <a href="https://innotelinc.github.io/zapit/">Zapit</a> (TransferOps) · <a href="https://innotelinc.github.io/atheniq/">AthenIQ</a> (LearningOps) · <a href="https://innotelinc.github.io/distro/">Distro</a> (BuilderOps) · <a href="https://innotelinc.github.io/plutus/">PLUTUS</a> (VideoOps)</p>
+  </footer>
+
+  <script>(function(){
+    var api = window.UnityTheme || window.OntrakTheme; if (!api) return;
+    function paint(){
+      var now = api.mode();
+      var all = document.querySelectorAll('[data-theme-mode]');
+      for (var i = 0; i < all.length; i++) {
+        all[i].setAttribute('aria-pressed', String(all[i].getAttribute('data-theme-mode') === now));
+      }
+    }
+    var buttons = document.querySelectorAll('[data-theme-mode]');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].addEventListener('click', function(){ api.setMode(this.getAttribute('data-theme-mode')); });
+    }
+    window.addEventListener('unity:theme', paint);
+    window.addEventListener('ontrak:theme', paint);
+    paint();
+  })();</script>
+</body>
+</html>

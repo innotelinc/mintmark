@@ -3,7 +3,7 @@
     "name": "Mintmark",
     "slug": "mintmark",
     "scheme": "mintmark",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "us.inotel.mintmark",
-      "buildNumber": "1",
+      "buildNumber": "8",
       "infoPlist": {
         "NSCameraUsageDescription": "Mintmark uses the camera to photograph the front of a coin so it can be identified and appraised.",
         "NSPhotoLibraryUsageDescription": "Mintmark reads the coin photo you choose so it can be appraised.",
