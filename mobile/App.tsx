@@ -176,13 +176,19 @@ function TabBar({ active, onChange }: { active: Tab; onChange: (tab: Tab) => voi
 const styles = StyleSheet.create({
   boot: { alignItems: 'center', backgroundColor: colors.bg, flex: 1, justifyContent: 'center' },
   safe: { backgroundColor: colors.bg, flex: 1 },
-  body: { flex: 1 },
+  // The screens are a single phone column. On an iPad that column would stretch to
+  // 1032pt and every line of copy would run the width of the display, so it is capped
+  // and centred; on a phone the cap is wider than the screen and changes nothing.
+  body: { alignSelf: 'center', flex: 1, maxWidth: 560, width: '100%' },
   tabBar: {
+    alignSelf: 'center',
     backgroundColor: colors.surface,
     borderTopColor: colors.line,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
+    maxWidth: 560,
     paddingTop: 8,
+    width: '100%',
   },
   tab: { alignItems: 'center', flex: 1, gap: 3, paddingVertical: 4 },
   tabLabel: { color: colors.faint, fontSize: 10.5, fontWeight: '600' },

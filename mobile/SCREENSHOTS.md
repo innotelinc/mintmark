@@ -12,6 +12,11 @@ is what App Store Connect asks for as of November 2026.
 | iPhone with Face ID (large display) | 1284 × 2778 or 1242 × 2688 | Only required if you skip the large Dynamic Island set |
 | iPad 13-inch | 2064 × 2752 | **Required** — `supportsTablet` is on, so the listing has an iPad slot |
 
+`mintmark-screenshots.yml` produces all three sets on the macOS runner: it boots two
+iPhone simulators and a 13-inch iPad, walks the same four screens on each, and fails if
+any slot has fewer than four captures or a size App Store Connect does not accept. The
+notes below are for capturing by hand instead.
+
 Because `app.json` sets `supportsTablet: true` the app installs on an iPad, and App
 Store Connect then refuses a version with no 13-inch iPad set. Capture **three** sets:
 `1206 × 2622`, `1320 × 2868` and `2064 × 2752` (iPad, portrait — the app is
