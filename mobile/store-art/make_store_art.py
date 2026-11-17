@@ -2,9 +2,9 @@
 """Compose Mintmark's App Store header and search-results art.
 
 Both pieces are built from a real capture in mobile/screenshots/out/, pasted at 1:1.
-The captures are already the exact slot size (1206x2622 and 1320x2868), so nothing is
-scaled and no text lands on the app's own type: the headline sits on a cream gradient
-band above the screenshot, coloured to melt into the app's background.
+The captures are already the exact slot size (1206x2622, 1320x2868 and 2064x2752), so
+nothing is scaled and no text lands on the app's own type: the headline sits on a cream
+gradient band above the screenshot, coloured to melt into the app's background.
 
     python3 mobile/store-art/make_store_art.py
 
@@ -83,7 +83,7 @@ def rounded_top(img: Image.Image, radius: int) -> Image.Image:
     return out
 
 
-def dark_block_span(shot: Image.Image, threshold: int = 170) -> tuple[int, int] | None:
+def dark_block_span(shot: Image.Image, probe: float, threshold: int = 170) -> tuple[int, int] | None:
     """Vertical span of the widest dark block, i.e. the value card on the appraisal screen.
 
     A row counts as dark when most of its width is dark, which ignores the text inside
@@ -92,8 +92,10 @@ def dark_block_span(shot: Image.Image, threshold: int = 170) -> tuple[int, int] 
     w, h = shot.size
     px = shot.load()
     # One probe column inside the card's left padding: right of the card edge, left of
-    # its text, so neither the label nor the big number can break the run.
-    x = round(w * 0.062)
+    # its text, so neither the label nor the big number can break the run. The iPhone
+    # card spans nearly the whole width, so 6% of it is padding; on an iPad the app is a
+    # 560pt column in the middle of the screen and that same 6% is empty cream.
+    x = round(w * probe)
     rows = [y for y in range(h) if sum(px[x, y]) < threshold]
     if not rows:
         return None
@@ -108,6 +110,32 @@ def dark_block_span(shot: Image.Image, threshold: int = 170) -> tuple[int, int] 
     if prev - start > best[1] - best[0]:
         best = (start, prev)
     return best
+
+
+def blank_runs(shot: Image.Image, lo: float = 0.15, hi: float = 0.85, ink: int = 690):
+    """Runs of rows inside the content column that carry no ink at all.
+
+    The appraisal screen on an iPad is a centred column that keeps going below the
+    value card, so the card is not a boundary the panel can end on; these gaps are.
+    """
+    w, h = shot.size
+    px = shot.load()
+    x0, x1 = round(w * lo), round(w * hi)
+    blank = [
+        y
+        for y in range(h)
+        if not any(sum(px[x, y]) < ink for x in range(x0, x1, 6))
+    ]
+    runs = []
+    if blank:
+        start = prev = blank[0]
+        for y in blank[1:]:
+            if y - prev > 1:
+                runs.append((start, prev))
+                start = y
+            prev = y
+        runs.append((start, prev))
+    return runs
 
 
 def soft_shadow(w: int, h: int, radius: int, blur: int, strength: int = 46) -> Image.Image:
@@ -192,19 +220,30 @@ def compose(
 def main() -> None:
     # region = which rows of the capture show: the header starts below the app's own
     # headline so the two do not compete, the search piece keeps the coin and the value.
+    # band  = rows of copy above the panel, in this slot's pixels.
+    # source = the row of the capture the panel starts at.
+    # On an iPhone the band and the source are the same row: the capture is authored for
+    # that screen, so everything above the drop zone is the app's own headline, which
+    # our copy replaces. On an iPad the app lays out as a centred column whose headline
+    # ends at row 400 and whose drop zone starts at 470, while the copy needs a 900px
+    # band at 2064 wide to stay legible: the panel therefore takes its own window from
+    # the drop zone down, instead of starting wherever the band ends.
     units = [
-        ("medium", (1206, 2622)),
-        ("large", (1320, 2868)),
+        ("medium", (1206, 2622), 0.062, None, None, "card"),
+        ("large", (1320, 2868), 0.062, None, None, "card"),
+        ("ipad", (2064, 2752), 0.26, 900, 470, "gap"),
     ]
-    for slot, size in units:
+    for slot, size, probe, band, source, search_cut in units:
         k = size[1] / 2622
+        band_h = round(760 * k) if band is None else band
+        src = band_h if source is None else source
 
         header = compose(
             slot=slot,
             capture="1-capture",
             size=size,
-            region=(round(760 * k), size[1]),
-            band_h=round(760 * k),
+            region=(src, src + size[1] - band_h),
+            band_h=band_h,
             eyebrow="COIN APPRAISAL",
             headline=["What is this", "coin worth?"],
             deck=["One photograph. An identification, a grade,", "and a collector-market value range."],
@@ -216,13 +255,28 @@ def main() -> None:
         # lands on the app's cream background, which is this canvas's cream too, so the
         # panel's bottom edge disappears instead of slicing a card or fading out.
         shot = Image.open(SHOTS / f"{slot}-3-appraisal.png").convert("RGB")
-        span = dark_block_span(shot)
+        span = dark_block_span(shot, probe)
         if not span:
             raise SystemExit(f"{slot}: could not find the value card to cut at")
-        # Past the probe's last dark row the card still rounds off for ~25px; adding
-        # 45px puts the cut in the cream below the card, where the seam cannot show.
-        bottom = min(shot.size[1], span[1] + round(45 * k))
-        top = round(160 * k)  # just below the status bar, so no sliced clock or island
+        panel_top = round(160 * k)  # just below the status bar: no sliced clock or island
+        if search_cut == "gap":
+            # This screen has content all the way down, so the panel has to end inside a
+            # gap between units rather than on the value card. Take the deepest gap that
+            # still leaves a band worth setting type in, and stop 24px into it: ending on
+            # the gap's first row reads as a sliced block, not as a deliberate end.
+            band_min = round(size[1] * 0.29)  # five words and a brand, and nothing else
+            limit = size[1] - band_min + panel_top
+            gaps = [g for g in blank_runs(shot) if g[1] - g[0] >= 24 and g[0] > span[1]]
+            usable = [g for g in gaps if g[0] <= limit]
+            if not usable:
+                raise SystemExit(f"{slot}: no cream gap to end the panel on before row {limit}")
+            start, end = max(usable, key=lambda g: g[0])
+            bottom = min(shot.size[1], start + min(24, end - start - 5))
+        else:
+            # Past the probe's last dark row the card still rounds off for ~25px; adding
+            # 45px puts the cut in the cream below the card, where the seam cannot show.
+            bottom = min(shot.size[1], span[1] + round(45 * k))
+        top = panel_top
 
         search = compose(
             slot=slot,

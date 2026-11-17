@@ -253,7 +253,14 @@ to 25 appraisals a day.
 | Search-results art `1206×2622` / `1320×2868` | **live** — first image in both sets, from `mobile/store-art/search-results-*.png` |
 | Header art `1206×2622` / `1320×2868` | **live** — second image in both sets, from `mobile/store-art/header-*.png` |
 | iPhone with Face ID (large) `1284×2778` | not needed once the large Dynamic Island set exists |
-| App preview video | not needed |
+| iPad 13-inch `2064×2752` | **not live** — the slot does not exist until a build declaring the iPad family is attached; four captures are in `mobile/screenshots/out/ipad-*.png` and both art pieces are in `mobile/store-art/*-2064x2752.png` |
+| App preview video | not needed (none for any device) |
+
+Version 1.0 on sale is **iPhone-only**: `supportsTablet` was off, so its binary declares
+one device family. The next build (from `19ca588` or later) declares both, and App Store
+Connect then expects a 13-inch iPad set on the version — `mintmark-screenshots.yml`
+produces those four captures, and `mobile/store-art/make_store_art.py` produces the two
+composed pieces for that slot.
 
 The images are committed in `mobile/screenshots/out/` and were produced by
 `.github/workflows/mintmark-screenshots.yml`, which builds the app for the simulator
