@@ -199,8 +199,17 @@ jobs:
           # App Store Connect rejects a screenshot that carries an alpha channel, and
           # simulator captures always do. The app's background is opaque, so flattening
           # onto white changes nothing visible.
-          python3 -c 'import PIL' 2>/dev/null || python3 -m pip install --quiet --user pillow
-          python3 - <<'PY'
+          # The runner's python3 is Homebrew-managed and refuses --user installs
+          # (PEP 668), which is how this step failed the first time it ever ran: the
+          # capture had already produced all twelve images. Pillow goes in a throwaway
+          # venv instead, and only when it is not already importable.
+          PYTHON=python3
+          if ! python3 -c 'import PIL' 2>/dev/null; then
+            python3 -m venv "$RUNNER_TEMP/shots"
+            "$RUNNER_TEMP/shots/bin/python" -m pip install --quiet --disable-pip-version-check pillow
+            PYTHON="$RUNNER_TEMP/shots/bin/python"
+          fi
+          "$PYTHON" - <<'PY'
           import glob
           from PIL import Image
 
