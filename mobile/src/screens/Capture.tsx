@@ -174,7 +174,10 @@ const styles = StyleSheet.create({
     minHeight: 260,
     overflow: 'hidden',
   },
-  photo: { height: 260, width: '100%' },
+  // contain, not cover, so the coin is never cropped — but a frame the width of a
+  // 560pt column letterboxes a round coin between two empty bands, so it stays close
+  // to square and centres. On a phone this is a narrower frame at the same height.
+  photo: { alignSelf: 'center', height: 260, maxWidth: 300, width: '100%' },
   replace: {
     alignItems: 'center',
     backgroundColor: colors.surface,

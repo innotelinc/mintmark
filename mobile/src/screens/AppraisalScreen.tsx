@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   backButton: { alignItems: 'center', flexDirection: 'row', gap: 2, paddingVertical: 6 },
   backText: { color: colors.muted, fontSize: 13 },
   figure: { backgroundColor: colors.surface, borderColor: colors.line, borderRadius: 22, borderWidth: 1, padding: 10, ...shadow.card },
-  photo: { backgroundColor: colors.coinTable, borderRadius: 16, height: 260, width: '100%' },
+  photo: { alignSelf: 'center', backgroundColor: colors.coinTable, borderRadius: 16, height: 260, maxWidth: 300, width: '100%' },
   figCaption: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4, paddingTop: 8 },
   date: { color: colors.faint, fontSize: 11 },
   note: { color: colors.muted, fontSize: 12.5, lineHeight: 18, paddingBottom: 4, paddingHorizontal: 4 },
