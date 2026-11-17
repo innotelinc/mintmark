@@ -267,9 +267,10 @@ two iPhone sets only, and `POST /v1/appScreenshotSets` with
 `APP_IPAD_PRO_3GEN_129` was needed. The two composed pieces then uploaded into it and
 both settled `COMPLETE` at 2064×2752.
 
-Version 1.1 still needs its iPhone screenshots: its `APP_IPHONE_61` and `APP_IPHONE_67`
-sets are empty, so the four captures per size and the matching art have to go in there
-before it can be submitted. The iPad set needs its four captures behind the art.
+Version 1.1 inherited 1.0's screenshots: both iPhone sets came up already holding their
+six images, art first. The iPad set was the only empty one, and it now holds the two
+composed pieces; the four `ipad-*.png` captures can follow them whenever the slot should
+match the six the iPhone sets carry.
 
 The images are committed in `mobile/screenshots/out/` and were produced by
 `.github/workflows/mintmark-screenshots.yml`, which builds the app for the simulator
