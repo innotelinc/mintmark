@@ -253,14 +253,23 @@ to 25 appraisals a day.
 | Search-results art `1206×2622` / `1320×2868` | **live** — first image in both sets, from `mobile/store-art/search-results-*.png` |
 | Header art `1206×2622` / `1320×2868` | **live** — second image in both sets, from `mobile/store-art/header-*.png` |
 | iPhone with Face ID (large) `1284×2778` | not needed once the large Dynamic Island set exists |
-| iPad 13-inch `2064×2752` | **not live** — the slot does not exist until a build declaring the iPad family is attached; four captures are in `mobile/screenshots/out/ipad-*.png` and both art pieces are in `mobile/store-art/*-2064x2752.png` |
+| iPad 13-inch `2064×2752` | **draft, art only** — version 1.1 `d405a608-72fb-4808-ac33-84b9a6b41fd8` with build 9 attached holds set `b0fb98a7-7077-4fd3-8af6-254e66dd479e`; both composed pieces are `COMPLETE` in it as images 1 and 2, and the four captures in `mobile/screenshots/out/ipad-*.png` still need to follow them |
 | App preview video | not needed (none for any device) |
 
 Version 1.0 on sale is **iPhone-only**: `supportsTablet` was off, so its binary declares
-one device family. The next build (from `19ca588` or later) declares both, and App Store
-Connect then expects a 13-inch iPad set on the version — `mintmark-screenshots.yml`
-produces those four captures, and `mobile/store-art/make_store_art.py` produces the two
-composed pieces for that slot.
+one device family. Build 9, archived on 17 November 2026 with `marketing_version 1.1`
+(run `44051455421`), declares both — the job's bundle check prints "the archive installs
+on iPhone and iPad" — and is `VALID` in TestFlight.
+
+Creating version 1.1 and attaching build 9 is what makes App Store Connect willing to
+hold a 13-inch iPad set. It did not create one by itself: the version came up with the
+two iPhone sets only, and `POST /v1/appScreenshotSets` with
+`APP_IPAD_PRO_3GEN_129` was needed. The two composed pieces then uploaded into it and
+both settled `COMPLETE` at 2064×2752.
+
+Version 1.1 still needs its iPhone screenshots: its `APP_IPHONE_61` and `APP_IPHONE_67`
+sets are empty, so the four captures per size and the matching art have to go in there
+before it can be submitted. The iPad set needs its four captures behind the art.
 
 The images are committed in `mobile/screenshots/out/` and were produced by
 `.github/workflows/mintmark-screenshots.yml`, which builds the app for the simulator
