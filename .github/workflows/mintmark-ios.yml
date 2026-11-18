@@ -320,10 +320,11 @@ jobs:
           xcrun altool --upload-app --type ios --file "$IPA" \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" --verbose
 
-      # altool returns before Apple lists the build, and TestFlight reports the build
-      # as "Missing Compliance" until the encryption question is answered — until then
-      # no tester can install it. This waits for this run's build number and answers it.
-      - name: Answer export compliance
+      # app.json's ITSAppUsesNonExemptEncryption: false is what answers this question,
+      # Apple doing it during processing; the step only checks that the declaration still
+      # reaches the binary. A build it does not reach is "Missing Compliance" in TestFlight
+      # and no tester can install it, so the run fails instead of looking healthy.
+      - name: Check export compliance
         if: ${{ github.event_name == 'push' || inputs.upload }}
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}

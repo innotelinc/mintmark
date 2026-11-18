@@ -1,18 +1,16 @@
 /**
- * Answers the TestFlight export-compliance question for the build a run just uploaded.
+ * Checks that the build this run uploaded reached TestFlight with the export-compliance
+ * question already answered. TestFlight reports an unanswered build as "Missing
+ * Compliance", and no tester can install it.
  *
- * altool exits as soon as Apple has the bytes, and the build itself shows up in App
- * Store Connect minutes later. Until its encryption question is answered, TestFlight
- * lists the build as "Missing Compliance" and no tester can install it. The answer is
- * the same for every Mintmark build — the app ships no cipher of its own and uses only
- * Apple's — but App Store Connect asks per build, and only the API can answer it.
+ * It only checks. mobile/app.json declares ITSAppUsesNonExemptEncryption: false, so
+ * Apple answers every build itself while processing it, and there is nothing here to
+ * write. If a build ever comes back unanswered, that declaration has stopped reaching
+ * the binary — the usual way is its infoPlist section disappearing from the prebuild —
+ * and the run should say so rather than paper over the symptom with an API call.
  *
  * The run's own version and build number come in as IOS_MARKETING_VERSION and
- * IOS_BUILD_NUMBER, because the newest build at upload time is still the previous one:
- * matching on the version alone would answer a build that was already answered and
- * leave the new one blocked. It refuses to write `true` or to overwrite an existing
- * `true`, since that is a declaration about the app's cryptography rather than a
- * housekeeping step.
+ * IOS_BUILD_NUMBER, because the newest build at upload time is still the previous one.
  */
 import { createPrivateKey, sign } from 'node:crypto';
 
@@ -25,13 +23,11 @@ const VERSION = (process.env.IOS_MARKETING_VERSION || '').trim();
 const BUILD = (process.env.IOS_BUILD_NUMBER || '').trim();
 const WAIT_MINUTES = Number(process.env.COMPLIANCE_WAIT_MINUTES || 20);
 
-if (!issuer || !keyId || !pem) {
-  console.error('ASC_ISSUER_ID / ASC_KEY_ID / ASC_PRIVATE_KEY are not all set.');
-  process.exit(1);
-}
-if (!BUILD) {
-  console.error('IOS_BUILD_NUMBER is not set; it must be the CFBundleVersion this run stamped.');
-  process.exit(1);
+for (const [name, value] of [['ASC_ISSUER_ID', issuer], ['ASC_KEY_ID', keyId], ['ASC_PRIVATE_KEY', pem], ['IOS_BUILD_NUMBER', BUILD]]) {
+  if (!value) {
+    console.error(`${name} is not set.`);
+    process.exit(1);
+  }
 }
 
 const key = createPrivateKey({ key: pem, format: 'pem' });
@@ -50,81 +46,51 @@ function bearer() {
   return token;
 }
 
-async function call(method, path, body) {
-  const res = await fetch(API + path, {
-    method,
-    headers: {
-      authorization: `Bearer ${bearer()}`,
-      'content-type': 'application/json',
-      accept: 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+async function call(path) {
+  const res = await fetch(API + path, { headers: { authorization: `Bearer ${bearer()}`, accept: 'application/json' } });
   const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { raw: text };
-  }
-  if (!res.ok) {
-    const detail = (data?.errors || [])
-      .map((e) => `${e.status} ${e.code}: ${e.title}${e.detail ? ` — ${e.detail}` : ''}`)
-      .join('; ');
-    throw new Error(`${method} ${path} → HTTP ${res.status}${detail ? ` · ${detail}` : ` · ${text.slice(0, 300)}`}`);
-  }
-  return data;
+  if (!res.ok) throw new Error(`GET ${path} → HTTP ${res.status} · ${text.slice(0, 300)}`);
+  return text ? JSON.parse(text) : null;
 }
 
-async function appId() {
-  const res = await call('GET', `/v1/apps?filter[bundleId]=${encodeURIComponent(BUNDLE)}&fields[apps]=name,bundleId`);
-  const row = res?.data?.[0];
-  if (!row) throw new Error(`no App Store Connect app for ${BUNDLE}`);
-  return { id: row.id, name: row.attributes?.name };
+const apps = await call(`/v1/apps?filter[bundleId]=${encodeURIComponent(BUNDLE)}&fields[apps]=name,bundleId`);
+const app = apps?.data?.[0];
+if (!app) {
+  console.error(`no App Store Connect app for ${BUNDLE}`);
+  process.exit(1);
 }
+console.log(`${app.attributes?.name} (${BUNDLE}): build ${BUILD} under ${VERSION}`);
 
-/** Waits for this run's build, then answers it. Returns false only on a real failure. */
-async function answer(app) {
-  const deadline = Date.now() + WAIT_MINUTES * 60 * 1000;
-  while (Date.now() < deadline) {
-    const res = await call(
-      'GET',
-      `/v1/builds?filter[app]=${app}&limit=50&include=preReleaseVersion&sort=-uploadedDate&fields[builds]=version,processingState,usesNonExemptEncryption,preReleaseVersion`
-    );
-    const pre = new Map((res?.included || []).map((row) => [row.id, row.attributes?.version]));
-    const target = (res?.data || []).find(
-      (row) =>
-        String(row.attributes?.version) === BUILD &&
-        pre.get(row.relationships?.preReleaseVersion?.data?.id) === VERSION
-    );
-    if (!target) {
-      console.log(`  no build ${BUILD} under ${VERSION} yet; Apple has not listed it, waiting 20s`);
-      await new Promise((resolve) => setTimeout(resolve, 20000));
-      continue;
-    }
-    const state = target.attributes?.processingState;
-    const answered = target.attributes?.usesNonExemptEncryption;
-    console.log(`  build ${BUILD} (${VERSION}) is ${state}, compliance=${answered}`);
-    if (answered === true) {
-      console.error('  this build declares non-exempt encryption; not answering that here');
-      return false;
-    }
-    if (answered === false) {
-      console.log('  already answered · nothing to change');
-      return true;
-    }
-    await call('PATCH', `/v1/builds/${target.id}`, {
-      data: { type: 'builds', id: target.id, attributes: { usesNonExemptEncryption: false } },
-    });
-    const after = await call('GET', `/v1/builds/${target.id}?fields[builds]=version,usesNonExemptEncryption`);
-    const now = after?.data?.attributes?.usesNonExemptEncryption;
-    console.log(`  answered · encryption=${now}`);
-    return now === false;
+const deadline = Date.now() + WAIT_MINUTES * 60 * 1000;
+let answer = null;
+while (Date.now() < deadline && answer === null) {
+  const res = await call(
+    `/v1/builds?filter[app]=${app.id}&limit=50&include=preReleaseVersion&sort=-uploadedDate&fields[builds]=version,processingState,usesNonExemptEncryption,preReleaseVersion`
+  );
+  const pre = new Map((res?.included || []).map((row) => [row.id, row.attributes?.version]));
+  const build = (res?.data || []).find(
+    (row) => String(row.attributes?.version) === BUILD && pre.get(row.relationships?.preReleaseVersion?.data?.id) === VERSION
+  );
+  if (!build) {
+    console.log(`  no build ${BUILD} under ${VERSION} yet; Apple has not listed it, waiting 20s`);
+    await new Promise((resolve) => setTimeout(resolve, 20000));
+    continue;
   }
-  console.error(`  build ${BUILD} under ${VERSION} did not appear within ${WAIT_MINUTES} minutes`);
-  return false;
+  console.log(`  build ${BUILD} (${VERSION}) is ${build.attributes?.processingState}, compliance=${build.attributes?.usesNonExemptEncryption}`);
+  answer = build.attributes?.usesNonExemptEncryption ?? null;
+  if (answer === null) {
+    // Processing may not have reached the declaration yet; give it the same window.
+    await new Promise((resolve) => setTimeout(resolve, 20000));
+  }
 }
 
-const { id, name } = await appId();
-console.log(`${name} (${BUNDLE}): build ${BUILD} under ${VERSION}`);
-process.exit((await answer(id)) ? 0 : 1);
+if (answer === false) {
+  console.log('  answered · ITSAppUsesNonExemptEncryption reached the binary');
+  process.exit(0);
+}
+console.error(
+  answer === true
+    ? '::error::this build declares non-exempt encryption; TestFlight will hold it until that is answered deliberately'
+    : `::error::build ${BUILD} under ${VERSION} is unanswered — app.json's ITSAppUsesNonExemptEncryption: false is not reaching the binary`
+);
+process.exit(1);
