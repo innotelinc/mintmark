@@ -11,6 +11,10 @@
  *
  * The run's own version and build number come in as IOS_MARKETING_VERSION and
  * IOS_BUILD_NUMBER, because the newest build at upload time is still the previous one.
+ *
+ * altool reports success while the package is still queued with Apple, and ingestion has
+ * ranged from about three minutes to over half an hour for the same binary, so the wait
+ * window is generously wide: a healthy upload must not fail a run just for being slow.
  */
 import { createPrivateKey, sign } from 'node:crypto';
 
@@ -21,7 +25,8 @@ const pem = (process.env.ASC_PRIVATE_KEY || '').replace(/\\n/g, '\n').trim();
 const BUNDLE = (process.env.APPLE_BUNDLE_ID || 'us.inotel.mintmark').trim();
 const VERSION = (process.env.IOS_MARKETING_VERSION || '').trim();
 const BUILD = (process.env.IOS_BUILD_NUMBER || '').trim();
-const WAIT_MINUTES = Number(process.env.COMPLIANCE_WAIT_MINUTES || 20);
+const WAIT_MINUTES = Number(process.env.COMPLIANCE_WAIT_MINUTES || 45);
+const POLL_SECONDS = 20;
 
 for (const [name, value] of [['ASC_ISSUER_ID', issuer], ['ASC_KEY_ID', keyId], ['ASC_PRIVATE_KEY', pem], ['IOS_BUILD_NUMBER', BUILD]]) {
   if (!value) {
@@ -73,8 +78,8 @@ while (Date.now() < deadline && answer === null) {
     (row) => String(row.attributes?.version) === BUILD && pre.get(row.relationships?.preReleaseVersion?.data?.id) === VERSION
   );
   if (!build) {
-    console.log(`  no build ${BUILD} under ${VERSION} yet; Apple has not listed it, waiting 20s`);
-    await new Promise((resolve) => setTimeout(resolve, 20000));
+    console.log(`  no build ${BUILD} under ${VERSION} yet; Apple has not listed it, waiting ${POLL_SECONDS}s`);
+    await new Promise((resolve) => setTimeout(resolve, POLL_SECONDS * 1000));
     continue;
   }
   listed = true;
@@ -82,7 +87,7 @@ while (Date.now() < deadline && answer === null) {
   answer = build.attributes?.usesNonExemptEncryption ?? null;
   if (answer === null) {
     // Processing may not have reached the declaration yet; give it the same window.
-    await new Promise((resolve) => setTimeout(resolve, 20000));
+    await new Promise((resolve) => setTimeout(resolve, POLL_SECONDS * 1000));
   }
 }
 

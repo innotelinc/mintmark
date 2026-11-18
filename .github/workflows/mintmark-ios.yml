@@ -52,7 +52,10 @@ jobs:
   testflight:
     name: Archive and upload
     runs-on: macos-26
-    timeout-minutes: 60
+    # The archive, pod install and upload take roughly 20-30 minutes, and the
+    # compliance check after them may wait 45 more for Apple to finish ingesting
+    # the package; 60 killed that wait before it could finish.
+    timeout-minutes: 90
     env:
       API_URL: ${{ vars.MINTMARK_API_URL }}
       EXPO_PUBLIC_API_URL: ${{ vars.MINTMARK_API_URL }}
@@ -324,6 +327,10 @@ jobs:
       # Apple doing it during processing; the step only checks that the declaration still
       # reaches the binary. A build it does not reach is "Missing Compliance" in TestFlight
       # and no tester can install it, so the run fails instead of looking healthy.
+      #
+      # The check waits up to 45 minutes (COMPLIANCE_WAIT_MINUTES) for the build to appear,
+      # because Apple's ingestion has taken anywhere from three minutes to about 35 on this
+      # app: a slow but healthy upload should not fail the run for being slow.
       - name: Check export compliance
         if: ${{ github.event_name == 'push' || inputs.upload }}
         env:
