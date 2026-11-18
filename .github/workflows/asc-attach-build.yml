@@ -1,0 +1,65 @@
+name: App Store version
+
+# Dispatch-only, and deliberately narrow: attach an already-uploaded build to an
+# App Store version and write that version's "What's New". There is no submit
+# path here — sending a version to review stays a deliberate act in App Store
+# Connect, not something a workflow input can trigger by accident.
+#
+# The App Store Connect key is the same three secrets the TestFlight job uses;
+# APPLE_TEAM_ID is not needed because this makes no signing calls.
+
+on:
+  workflow_dispatch:
+    inputs:
+      attach:
+        description: Attach the build below to the version
+        type: boolean
+        default: true
+      whats_new:
+        description: Write the What's New onto the en-US localization
+        type: boolean
+        default: true
+
+concurrency:
+  group: mintmark-app-store-version
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Attach build and write What's New
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      APP_ID: '6834939837'
+      VERSION_ID: d405a608-72fb-4808-ac33-84b9a6b41fd8
+      BUILD_NUMBER: '13'
+      DO_ATTACH: ${{ inputs.attach }}
+      DO_WHATS_NEW: ${{ inputs.whats_new }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check the credentials are present
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -z "$ASC_KEY_ID" ] && missing="$missing ASC_KEY_ID"
+          [ -z "$ASC_ISSUER_ID" ] && missing="$missing ASC_ISSUER_ID"
+          [ -z "$ASC_PRIVATE_KEY" ] && missing="$missing ASC_PRIVATE_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secret(s):$missing."
+            exit 1
+          fi
+
+      - name: Attach the build and write What's New
+        working-directory: mobile
+        run: node scripts/asc-version.mjs
