@@ -63,6 +63,7 @@ console.log(`${app.attributes?.name} (${BUNDLE}): build ${BUILD} under ${VERSION
 
 const deadline = Date.now() + WAIT_MINUTES * 60 * 1000;
 let answer = null;
+let listed = false;
 while (Date.now() < deadline && answer === null) {
   const res = await call(
     `/v1/builds?filter[app]=${app.id}&limit=50&include=preReleaseVersion&sort=-uploadedDate&fields[builds]=version,processingState,usesNonExemptEncryption,preReleaseVersion`
@@ -76,6 +77,7 @@ while (Date.now() < deadline && answer === null) {
     await new Promise((resolve) => setTimeout(resolve, 20000));
     continue;
   }
+  listed = true;
   console.log(`  build ${BUILD} (${VERSION}) is ${build.attributes?.processingState}, compliance=${build.attributes?.usesNonExemptEncryption}`);
   answer = build.attributes?.usesNonExemptEncryption ?? null;
   if (answer === null) {
@@ -87,6 +89,12 @@ while (Date.now() < deadline && answer === null) {
 if (answer === false) {
   console.log('  answered · ITSAppUsesNonExemptEncryption reached the binary');
   process.exit(0);
+}
+if (!listed) {
+  // Nothing to conclude about the declaration: altool reported success, and Apple
+  // still had the package in PROCESSING past the window, so it never appeared here.
+  console.error(`::error::Apple never listed build ${BUILD} under ${VERSION} within ${WAIT_MINUTES} minutes; the upload did not finish processing, so compliance was not checked`);
+  process.exit(1);
 }
 console.error(
   answer === true
