@@ -253,7 +253,7 @@ to 25 appraisals a day.
 | Search-results art `1206×2622` / `1320×2868` | **live** — first image in both sets, from `mobile/store-art/search-results-*.png` |
 | Header art `1206×2622` / `1320×2868` | **live** — second image in both sets, from `mobile/store-art/header-*.png` |
 | iPhone with Face ID (large) `1284×2778` | not needed once the large Dynamic Island set exists |
-| iPad 13-inch `2064×2752` | **draft, art only** — version 1.1 `d405a608-72fb-4808-ac33-84b9a6b41fd8` with build 9 attached holds set `b0fb98a7-7077-4fd3-8af6-254e66dd479e`; both composed pieces are `COMPLETE` in it as images 1 and 2, and the four captures in `mobile/screenshots/out/ipad-*.png` still need to follow them |
+| iPad 13-inch `2064×2752` | **draft, six images** — version 1.1 `d405a608-72fb-4808-ac33-84b9a6b41fd8` with build 9 attached holds set `b0fb98a7-7077-4fd3-8af6-254e66dd479e`: the two composed pieces at 1 and 2, then `ipad-1-capture` through `ipad-4-settings`, all `COMPLETE` |
 | App preview video | not needed (none for any device) |
 
 Version 1.0 on sale is **iPhone-only**: `supportsTablet` was off, so its binary declares
@@ -268,9 +268,9 @@ two iPhone sets only, and `POST /v1/appScreenshotSets` with
 both settled `COMPLETE` at 2064×2752.
 
 Version 1.1 inherited 1.0's screenshots: both iPhone sets came up already holding their
-six images, art first. The iPad set was the only empty one, and it now holds the two
-composed pieces; the four `ipad-*.png` captures can follow them whenever the slot should
-match the six the iPhone sets carry.
+six images, art first. The iPad set was the only empty one; it now matches them — the
+two composed pieces first, then the four `ipad-*.png` captures, six images, every one
+`COMPLETE` at 2064×2752 and read back from the API in that order.
 
 The images are committed in `mobile/screenshots/out/` and were produced by
 `.github/workflows/mintmark-screenshots.yml`, which builds the app for the simulator
