@@ -19,7 +19,7 @@ Already pushed into App Store Connect through the API, and readable back from it
 | Promotional text | 160 characters |
 | Support URL | `https://mint.innotel.tech/support` |
 | Marketing URL | `https://mint.innotel.tech` |
-| Build | 8 (version 1.0) attached to the version |
+| Build | 13 (version 1.1, `PREPARE_FOR_SUBMISSION`); 8 is the build on sale with 1.0 |
 | Age rating | every category answered "None" via the API |
 | Categories | Reference (primary), Utilities (secondary) |
 
@@ -131,11 +131,26 @@ Free to appraise. Estimates come from one photograph and are not a professional 
 ## What's New — 4000 max
 
 ```
-First release.
+1.1 brings Mintmark to iPad. The app now installs on iPad as well as iPhone, and the wider screen is used properly: capture, the collection and an appraisal each fill the room instead of stretching a phone layout. Everything else is the app you already had — one photograph in, the identification, a Sheldon grade and a collector-market range out, with the reasoning and the checks that would confirm it. Free, no account, no in-app purchases.
 ```
 
-The build number is set by CI, so this text is the only thing to update per
-release.
+[443]. This is the copy `mobile/scripts/asc-version.mjs` writes onto version 1.1's
+en-US localization; change the script and this block together so the listing and
+the API write cannot disagree. 1.0 keeps "First release.", which is true of it and
+would read as false next to a 1.1.
+
+Build 13 is the build for 1.1: `BUILD_NUMBER` and `VERSION_ID` in
+[`.github/workflows/asc-attach-build.yml`](../.github/workflows/asc-attach-build.yml)
+point at build 13 and version `d405a608-72fb-4808-ac33-84b9a6b41fd8`, and the job
+attaches it and writes the copy above in one run. Run 2 of that job (18 November
+2026, 16:27 UTC, <https://github.com/innotelinc/mintmark/actions/runs/44347385852>)
+succeeded and read back **`1.1 is PREPARE_FOR_SUBMISSION with build 13 attached`**;
+the en-US What's New was written in the same run, which cannot finish green if the
+localization `PATCH` fails.
+
+That job is dispatch-only and has no submit path, so 1.1 stays in *Prepare for
+Submission*; sending it to review is still the separate two-call act described
+under **Still to do**.
 
 ## URLs
 
