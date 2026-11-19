@@ -148,11 +148,21 @@ if (DO_WHATS_NEW) {
 // asynchronously, so the state printed here is what App Store Connect holds.
 const after = await readVersion();
 const now = after.included?.find((i) => i.type === 'builds');
-console.log(`::notice::${after.data.attributes.versionString} is ${after.data.attributes.appStoreState} with build ${now ? now.attributes.version : 'none'} attached`);
 
 const locs = await call(
   `/v1/appStoreVersions/${VERSION}/appStoreVersionLocalizations` +
     '?fields[appStoreVersionLocalizations]=locale,whatsNew'
+);
+const enUS = (locs?.data || []).find((l) => l.attributes.locale === 'en-US');
+const written = (enUS?.attributes.whatsNew || '').length;
+// The notice is the public half of this job: it surfaces as a run annotation,
+// which anyone can read without the App Store Connect key. It therefore carries
+// the copy length too, so "What's New was written" is provable from the run
+// alone, not just from logs that need a GitHub sign-in.
+console.log(
+  `::notice::${after.data.attributes.versionString} is ${after.data.attributes.appStoreState} ` +
+    `with build ${now ? now.attributes.version : 'none'} attached, ` +
+    `en-US What's New ${written} characters`
 );
 for (const l of locs.data) {
   console.log(`  ${l.attributes.locale} whatsNew ${(l.attributes.whatsNew || '').length} chars`);
