@@ -22,7 +22,10 @@ const keyId = (process.env.ASC_KEY_ID || '').trim();
 const issuer = (process.env.ASC_ISSUER_ID || '').trim();
 const pem = (process.env.ASC_PRIVATE_KEY || '').replace(/\\n/g, '\n').trim();
 const APP = process.env.APP_ID;
-const VERSION = process.env.VERSION_ID;
+const VERSION = (process.env.VERSION_ID || '').trim();
+// Optional: pick the record by version string instead of the pinned id, so the job can
+// be pointed at whichever version is in scope without editing this file.
+const VERSION_STRING = (process.env.VERSION_STRING || '').trim();
 const BUILD = process.env.BUILD_NUMBER;
 const DO_ATTACH = process.env.DO_ATTACH === 'true';
 const DO_WHATS_NEW = process.env.DO_WHATS_NEW === 'true';
@@ -76,9 +79,27 @@ async function call(path, init = {}) {
   return body;
 }
 
+async function resolveVersionId() {
+  if (!VERSION_STRING) return VERSION;
+  const found = await call(
+    `/v1/apps/${APP}/appStoreVersions?filter[platform]=IOS` +
+      `&filter[versionString]=${encodeURIComponent(VERSION_STRING)}` +
+      '&fields[appStoreVersions]=versionString,appStoreState&limit=5'
+  );
+  const hit = (found?.data || [])[0];
+  if (!hit) {
+    console.error(`::error::no ${VERSION_STRING} version on app ${APP}`);
+    process.exit(1);
+  }
+  console.log(`resolved ${VERSION_STRING} to ${hit.id} (${hit.attributes.appStoreState})`);
+  return hit.id;
+}
+
+const versionId = await resolveVersionId();
+
 async function readVersion() {
   return call(
-    `/v1/appStoreVersions/${VERSION}?include=build` +
+    `/v1/appStoreVersions/${versionId}?include=build` +
       '&fields[appStoreVersions]=versionString,appStoreState,platform' +
       '&fields[builds]=version,processingState'
   );
@@ -89,6 +110,34 @@ const v = before.data;
 const attached = before.included?.find((i) => i.type === 'builds');
 console.log(`version ${v.attributes.versionString} on ${v.attributes.platform}: ${v.attributes.appStoreState}`);
 console.log(`attached build: ${attached ? attached.attributes.version : 'none'}`);
+
+// States in which Apple holds the version. There is no create-a-version fallback in
+// this script — it targets one existing record — so a run into one of these states
+// fails on a refused write ("the version is not editable"), after the job has already
+// printed what it intended to do. Stop before writing instead. A rejected or editable
+// version still falls through to the work below.
+const LOCKED_STATES = [
+  'WAITING_FOR_REVIEW',
+  'IN_REVIEW',
+  'PENDING_DEVELOPER_RELEASE',
+  'PENDING_APPLE_RELEASE',
+  'PROCESSING_FOR_DISTRIBUTION',
+  'READY_FOR_SALE',
+  'REPLACED_WITH_NEW_VERSION',
+];
+
+if (LOCKED_STATES.includes(v.attributes.appStoreState)) {
+  console.log(
+    `::notice::${v.attributes.versionString} is ${v.attributes.appStoreState}; ` +
+      'Apple holds this version, so there is nothing to attach or write'
+  );
+  console.log(
+    'It has to leave review on the Version page in App Store Connect before this job can write to it.'
+  );
+  console.log(`https://appstoreconnect.apple.com/apps/${APP}/distribution/ios/version/inflight`);
+  console.log('nothing was submitted for review');
+  process.exit(0);
+}
 
 if (DO_ATTACH) {
   const builds = await call(
@@ -111,7 +160,7 @@ if (DO_ATTACH) {
   if (attached && attached.id === build.id) {
     console.log(`build ${BUILD} is already attached; nothing to do`);
   } else {
-    await call(`/v1/appStoreVersions/${VERSION}/relationships/build`, {
+    await call(`/v1/appStoreVersions/${versionId}/relationships/build`, {
       method: 'PATCH',
       body: JSON.stringify({ data: { type: 'builds', id: build.id } }),
     });
@@ -121,7 +170,7 @@ if (DO_ATTACH) {
 
 if (DO_WHATS_NEW) {
   const locs = await call(
-    `/v1/appStoreVersions/${VERSION}/appStoreVersionLocalizations` +
+    `/v1/appStoreVersions/${versionId}/appStoreVersionLocalizations` +
       '?fields[appStoreVersionLocalizations]=locale,whatsNew'
   );
   const loc = (locs?.data || []).find((l) => l.attributes.locale === 'en-US');
@@ -150,7 +199,7 @@ const after = await readVersion();
 const now = after.included?.find((i) => i.type === 'builds');
 
 const locs = await call(
-  `/v1/appStoreVersions/${VERSION}/appStoreVersionLocalizations` +
+  `/v1/appStoreVersions/${versionId}/appStoreVersionLocalizations` +
     '?fields[appStoreVersionLocalizations]=locale,whatsNew'
 );
 const enUS = (locs?.data || []).find((l) => l.attributes.locale === 'en-US');
