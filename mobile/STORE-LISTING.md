@@ -5,7 +5,7 @@ character limits that apply. Copy the blocks below verbatim; the lengths in
 brackets are the real counts.
 
 The app record is **Mintmark Appraisal**, bundle id `us.inotel.mintmark`, SKU
-`mintmark`, version 1.0 in *Prepare for Submission*.
+`mintmark`, version 1.1 on sale as `READY_FOR_SALE` with build 14 attached.
 
 Already pushed into App Store Connect through the API, and readable back from it:
 
@@ -19,7 +19,7 @@ Already pushed into App Store Connect through the API, and readable back from it
 | Promotional text | 160 characters |
 | Support URL | `https://mint.innotel.tech/support` |
 | Marketing URL | `https://mint.innotel.tech` |
-| Build | 13 (version 1.1, `PREPARE_FOR_SUBMISSION`); 8 is the build on sale with 1.0 |
+| Build | 14 (version 1.1, `READY_FOR_SALE`, the build on sale); 8 shipped with 1.0 |
 | Age rating | every category answered "None" via the API |
 | Categories | Reference (primary), Utilities (secondary) |
 
@@ -31,8 +31,9 @@ the version to `DEVELOPER_REJECTED`, and it was resubmitted as
 
 **Approved and live.** Submitted on 15 November 2026 at 22:57 UTC, the version went into
 review on 16 November at 19:31 UTC and came out of it at 20:21 UTC the same day — fifty
-minutes in review — as `READY_FOR_SALE`. Build 8 is what is on sale, with both screenshot
-sets holding six images, at:
+minutes in review — as `READY_FOR_SALE`. Build 8 was the build for 1.0, with both
+screenshot sets holding six images. 1.1 with build 14 has since replaced it, and the app
+is at:
 
 <https://apps.apple.com/us/app/mintmark-appraisal/id6834939837>
 
@@ -139,18 +140,26 @@ en-US localization; change the script and this block together so the listing and
 the API write cannot disagree. 1.0 keeps "First release.", which is true of it and
 would read as false next to a 1.1.
 
-Build 13 is the build for 1.1: `BUILD_NUMBER` and `VERSION_ID` in
+Build 14 is the build for 1.1: `BUILD_NUMBER` and `VERSION_ID` in
 [`.github/workflows/asc-attach-build.yml`](../.github/workflows/asc-attach-build.yml)
-point at build 13 and version `d405a608-72fb-4808-ac33-84b9a6b41fd8`, and the job
-attaches it and writes the copy above in one run. Run 2 of that job (18 November
-2026, 16:27 UTC, <https://github.com/innotelinc/mintmark/actions/runs/44347385852>)
-succeeded and read back **`1.1 is PREPARE_FOR_SUBMISSION with build 13 attached`**;
-the en-US What's New was written in the same run, which cannot finish green if the
-localization `PATCH` fails.
+point at build 14 and version `d405a608-72fb-4808-ac33-84b9a6b41fd8`, and the job
+attaches it and writes the copy above in one run. Build 13 was put on the same version
+the same way on 18 November 2026 (run
+<https://github.com/innotelinc/mintmark/actions/runs/44347385852>); build 14 replaced it
+for the release that went on sale.
 
-That job is dispatch-only and has no submit path, so 1.1 stays in *Prepare for
-Submission*; sending it to review is still the separate two-call act described
-under **Still to do**.
+That job is dispatch-only and has no submit path. 1.1 is now `READY_FOR_SALE` with
+build 14 attached, so a run into it is a no-op: `mobile/scripts/asc-version.mjs` reads
+the version before writing anything and, in a state where Apple holds it
+(`WAITING_FOR_REVIEW`, `IN_REVIEW`, `READY_FOR_SALE` and the rest), prints
+**`1.1 is READY_FOR_SALE; Apple holds this version, so there is nothing to attach or write`**
+and exits 0. Runs
+<https://github.com/innotelinc/mintmark/actions/runs/45362165323> (default inputs) and
+<https://github.com/innotelinc/mintmark/actions/runs/45366524005> (attach and What's New
+turned off) both read back `version 1.1 on IOS: READY_FOR_SALE` and `attached build: 14`
+and made no `PATCH`, `POST` or `DELETE`. Writing to 1.1 again is no longer possible: the
+next release gets its own version record, and `VERSION_ID` and `BUILD_NUMBER` change
+with it.
 
 ## URLs
 
@@ -268,7 +277,7 @@ to 25 appraisals a day.
 | Search-results art `1206×2622` / `1320×2868` | **live** — first image in both sets, from `mobile/store-art/search-results-*.png` |
 | Header art `1206×2622` / `1320×2868` | **live** — second image in both sets, from `mobile/store-art/header-*.png` |
 | iPhone with Face ID (large) `1284×2778` | not needed once the large Dynamic Island set exists |
-| iPad 13-inch `2064×2752` | **draft, six images** — version 1.1 `d405a608-72fb-4808-ac33-84b9a6b41fd8` with build 9 attached holds set `b0fb98a7-7077-4fd3-8af6-254e66dd479e`: the two composed pieces at 1 and 2, then `ipad-1-capture` through `ipad-4-settings`, all `COMPLETE` |
+| iPad 13-inch `2064×2752` | **live, six images** — version 1.1 `d405a608-72fb-4808-ac33-84b9a6b41fd8` holds set `b0fb98a7-7077-4fd3-8af6-254e66dd479e`: the two composed pieces at 1 and 2, then `ipad-1-capture` through `ipad-4-settings`, all `COMPLETE` |
 | App preview video | not needed (none for any device) |
 
 Version 1.0 on sale is **iPhone-only**: `supportsTablet` was off, so its binary declares
@@ -306,8 +315,7 @@ in a state that accepts screenshots.
 1. An empty review-submission draft (`39c1d92d-b8fd-4026-83e4-3e7b8ea677d6`) is still
    listed on the Version page, and only the web UI can remove it: `DELETE` answers 403
    `FORBIDDEN_ERROR` on `reviewSubmissions` in every state. Harmless, worth tidying.
-2. When Apple approves, release the build manually: `releaseType` is `AFTER_APPROVAL`.
-3. Changing screenshots again means another pull from review — `PATCH` the submission
+2. Changing screenshots again means another pull from review — `PATCH` the submission
    with `canceled: true`, which leaves the version `DEVELOPER_REJECTED` and its wells
    open — or the next version. Once a version is approved, its wells stop accepting
    uploads and the store art has to ride a new version.
