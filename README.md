@@ -14,7 +14,7 @@ as **Mintmark Appraisal**.
 [![Conformity](https://github.com/innotelinc/mintmark/actions/workflows/conform.yml/badge.svg)](https://github.com/innotelinc/mintmark/actions/workflows/conform.yml)
 [![Theme: Unity](https://img.shields.io/badge/theme-Unity-6366f1)](https://github.com/innotelinc/innotel-platform-stack/blob/main/standards/unity/README.md)
 [![App Store](https://img.shields.io/badge/App%20Store-live-0b7a3b?logo=apple&logoColor=white)](https://apps.apple.com/us/app/mintmark-appraisal/id6834939837)
-[![Version](https://img.shields.io/badge/version-1.0.0%20(build%208)-informational)](#the-iphone-app)
+[![Version](https://img.shields.io/badge/version-1.1%20(build%2014)-informational)](#the-iphone-app)
 
 </div>
 

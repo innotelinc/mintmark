@@ -15,30 +15,31 @@
  */
 
 import { createPrivateKey, sign } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 const API = 'https://api.appstoreconnect.apple.com';
+
+// store.json at the repository root is the one record of what Apple holds. The
+// workflow hands the values in through the environment; reading the same file
+// here means a hand-run cannot act on a version the repository does not claim.
+const STORE = JSON.parse(readFileSync(new URL('../../store.json', import.meta.url), 'utf8'));
 
 const keyId = (process.env.ASC_KEY_ID || '').trim();
 const issuer = (process.env.ASC_ISSUER_ID || '').trim();
 const pem = (process.env.ASC_PRIVATE_KEY || '').replace(/\\n/g, '\n').trim();
-const APP = process.env.APP_ID;
-const VERSION = (process.env.VERSION_ID || '').trim();
+const APP = process.env.APP_ID || STORE.appId;
+const VERSION = (process.env.VERSION_ID || '').trim() || STORE.versionId;
 // Optional: pick the record by version string instead of the pinned id, so the job can
 // be pointed at whichever version is in scope without editing this file.
-const VERSION_STRING = (process.env.VERSION_STRING || '').trim();
-const BUILD = process.env.BUILD_NUMBER;
+const VERSION_STRING = (process.env.VERSION_STRING || '').trim() || STORE.version;
+const BUILD = process.env.BUILD_NUMBER || STORE.build;
 const DO_ATTACH = process.env.DO_ATTACH === 'true';
 const DO_WHATS_NEW = process.env.DO_WHATS_NEW === 'true';
 
-// The 1.1 copy agreed for this release. It replaces 1.0's "First release.",
-// which a reviewer can see is false next to a 1.0 that is already on sale.
-const WHATS_NEW =
-  '1.1 brings Mintmark to iPad. The app now installs on iPad as well as iPhone, ' +
-  'and the wider screen is used properly: capture, the collection and an appraisal ' +
-  'each fill the room instead of stretching a phone layout. Everything else is the ' +
-  'app you already had — one photograph in, the identification, a Sheldon grade and ' +
-  'a collector-market range out, with the reasoning and the checks that would confirm ' +
-  'it. Free, no account, no in-app purchases.';
+// The What's New copy lives in store.json, beside the version id and build, and is
+// also the block mobile/STORE-LISTING.md prints. It is not kept here: a copy in
+// the script would be a third place to update and a third place to be wrong.
+const WHATS_NEW = STORE.whatsNew;
 
 const key = createPrivateKey({ key: pem, format: 'pem' });
 const b64 = (o) => Buffer.from(typeof o === 'string' ? o : JSON.stringify(o)).toString('base64url');

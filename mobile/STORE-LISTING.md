@@ -7,6 +7,27 @@ brackets are the real counts.
 The app record is **Mintmark Appraisal**, bundle id `us.inotel.mintmark`, SKU
 `mintmark`, version 1.1 on sale as `READY_FOR_SALE` with build 14 attached.
 
+The block below is generated from [`store.json`](../store.json), which is the one
+record of what Apple holds. The version job reads its app id, version id and build
+from that file instead of carrying copies, and `mobile/scripts/store-state.mjs`
+checks this block against it, so the listing cannot quietly disagree with the
+workflow. Change `store.json` first, then run `node mobile/scripts/store-state.mjs
+--write` to regenerate the block. A scheduled read-only run of
+`.github/workflows/store-state.yml` asks Apple the same question once a day and
+fails when the answer has moved.
+
+<!-- store-state:begin — generated from store.json; edit that file, then run the store-state script with --write -->
+| What App Store Connect holds | Value |
+| --- | --- |
+| App | `Mintmark Appraisal` — app id `6834939837`, bundle `us.inotel.mintmark` |
+| Version | `1.1` |
+| Build | `14` |
+| State | `READY_FOR_SALE` |
+| Version id | `d405a608-72fb-4808-ac33-84b9a6b41fd8` |
+| Released | 2026-11-22T17:08:26Z |
+| What's New | 443 characters |
+<!-- store-state:end -->
+
 Already pushed into App Store Connect through the API, and readable back from it:
 
 | Field | Live value |
@@ -136,14 +157,17 @@ Free to appraise. Estimates come from one photograph and are not a professional 
 ```
 
 [443]. This is the copy `mobile/scripts/asc-version.mjs` writes onto version 1.1's
-en-US localization; change the script and this block together so the listing and
+en-US localization, and it is read from `whatsNew` in
+[`store.json`](../store.json) rather than kept in the script, so the listing and
 the API write cannot disagree. 1.0 keeps "First release.", which is true of it and
 would read as false next to a 1.1.
 
-Build 14 is the build for 1.1: `BUILD_NUMBER` and `VERSION_ID` in
+Build 14 is the build for 1.1: the job takes `appId`, `versionId` and `build` from
+[`store.json`](../store.json) — build 14 and version
+`d405a608-72fb-4808-ac33-84b9a6b41fd8` today — so
 [`.github/workflows/asc-attach-build.yml`](../.github/workflows/asc-attach-build.yml)
-point at build 14 and version `d405a608-72fb-4808-ac33-84b9a6b41fd8`, and the job
-attaches it and writes the copy above in one run. Build 13 was put on the same version
+attaches that build and writes the copy above in one run, with no second place to
+update. Build 13 was put on the same version
 the same way on 18 November 2026 (run
 <https://github.com/innotelinc/mintmark/actions/runs/44347385852>); build 14 replaced it
 for the release that went on sale.
