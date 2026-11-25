@@ -95,9 +95,9 @@ try {
 
 // ---------------------------------------------------------------- the record
 
-// versionId is optional: the version is always resolved from `version`, and the id
-// is only pinned where a job needs to address one exact record.
-const REQUIRED = ['app', 'appId', 'bundleId', 'version', 'build', 'state', 'whatsNew', 'listingDoc'];
+// versionId and whatsNew are optional: the version is always resolved from
+// `version`, and a version that carries no release notes has nothing to record.
+const REQUIRED = ['app', 'appId', 'bundleId', 'version', 'build', 'state', 'listingDoc'];
 
 function checkRecord() {
   const problems = [];
@@ -146,7 +146,7 @@ function renderBlock(s) {
     `| State | \`${s.state}\` |`,
     s.versionId ? `| Version id | \`${s.versionId}\` |` : null,
     `| Released | ${s.releasedAt || 'not recorded'} |`,
-    `| What's New | ${s.whatsNew.length} characters |`,
+    typeof s.whatsNew === 'string' ? `| What's New | ${s.whatsNew.length} characters |` : null,
   ].filter(Boolean);
   return [BLOCK_HEADER, ...rows, END_MARK].join('\n');
 }
@@ -178,7 +178,8 @@ function checkListing() {
       return [`${store.listingDoc} is not valid JSON: ${err.message}`];
     }
     for (const key of ['version', 'whatsNew']) {
-      if (listing[key] !== undefined && String(listing[key]) !== String(store[key])) {
+      if (listing[key] === undefined || store[key] === undefined) continue;
+      if (String(listing[key]) !== String(store[key])) {
         problems.push(`${store.listingDoc} has ${key} "${listing[key]}"; store.json says "${store[key]}"`);
       }
     }
