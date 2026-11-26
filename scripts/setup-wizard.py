@@ -16,17 +16,23 @@ It is deliberately conservative:
 
 `--check` preflights only, `--no-input` accepts every default, `--dry-run`
 prints the plan without touching disk, and `--root` points it at a checkout
-other than the one holding this script.
+other than the one holding this script. `--doctor` checks an install that has
+already been written: the data directory, the published port, `/api/health`,
+and the gateway key against `GET /v1/models`.
 """
 from __future__ import annotations
 
 import argparse
 import getpass
+import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -193,6 +199,133 @@ def preflight() -> int:
     return 0
 
 
+def port_available(port: int, host: str = "127.0.0.1") -> bool:
+    """True when nothing holds the port (or it is already ours to take)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+        except OSError:
+            return False
+    return True
+
+
+def probe_health(port: int, timeout: float = 3.0) -> tuple[bool, str]:
+    """`GET /api/health` on the published port; the worker answers {ok: true}."""
+    url = f"http://127.0.0.1:{port}/api/health"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
+            status = response.status
+            body = json.loads(response.read().decode() or "{}")
+    except urllib.error.HTTPError as error:
+        return False, f"{url} -> HTTP {error.code}"
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        return False, f"{url} -> {error}"
+    if status == 200 and isinstance(body, dict) and body.get("ok") is True:
+        return True, f"{url} -> 200"
+    return False, f"{url} -> {status}, unexpected body"
+
+
+def probe_gateway(base_url: str, api_key: str, timeout: float = 10.0) -> tuple[bool, str]:
+    """`GET {base}/models` with the key — the check the README recommends."""
+    url = base_url.rstrip("/") + "/models"
+    request = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            status = response.status
+            payload = json.loads(response.read().decode() or "{}")
+    except urllib.error.HTTPError as error:
+        return False, f"{url} -> HTTP {error.code}"
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        return False, f"{url} -> {error}"
+    if status != 200:
+        return False, f"{url} -> {status}"
+    models = payload.get("data") if isinstance(payload, dict) else None
+    if isinstance(models, list) and models:
+        count = len(models)
+        return True, f"{url} -> 200 ({count} model{'s' if count != 1 else ''})"
+    return True, f"{url} -> 200"
+
+
+def doctor_settings(root: Path) -> dict[str, str]:
+    """Defaults, overlaid with the checkout's .env, then the environment."""
+    answers = Answers.defaults()
+    values = {
+        "MINTMARK_BASE_URL": answers.base_url,
+        "MINTMARK_MODEL": answers.model,
+        "MINTMARK_PORT": answers.port,
+        "MINTMARK_DATA": answers.data_dir,
+        "MINTMARK_API_KEY": "",
+    }
+    for key, value in read_env(root / ".env").items():
+        if key in values:
+            values[key] = value
+    # The service reads the environment too; whatever it would see wins here.
+    values["MINTMARK_API_KEY"] = os.environ.get("MINTMARK_API_KEY", values["MINTMARK_API_KEY"])
+    return values
+
+
+def doctor(root: Path) -> int:
+    """Check a finished install rather than a written one."""
+    settings = doctor_settings(root)
+    port = int(settings["MINTMARK_PORT"])
+    data_dir = Path(settings["MINTMARK_DATA"]).expanduser()
+    if not data_dir.is_absolute():
+        data_dir = (root / data_dir).resolve()
+
+    lines: list[tuple[str, str, str]] = []
+    failures = 0
+
+    if not (root / ".env").exists():
+        lines.append(("warn", "env file", f"{root / '.env'} is missing — run ./setup.sh first"))
+
+    if not data_dir.exists():
+        lines.append(("warn", "data directory", f"{data_dir} does not exist yet; compose creates it on first start"))
+    elif not os.access(data_dir, os.W_OK):
+        lines.append(("fail", "data directory", f"{data_dir} is not writable by this user"))
+        failures += 1
+    else:
+        lines.append(("ok", "data directory", str(data_dir)))
+
+    healthy, health_detail = probe_health(port)
+    if healthy:
+        lines.append(("ok", "health", health_detail))
+    else:
+        lines.append(("fail", "health", health_detail))
+        failures += 1
+
+    if healthy:
+        lines.append(("ok", "published port", f"{port} is serving Mintmark"))
+    elif port_available(port):
+        lines.append(("warn", "published port", f"{port} is free — start `docker compose -f compose.selfhost.yml up -d`"))
+    else:
+        lines.append(("fail", "published port", f"{port} is held by another process"))
+        failures += 1
+
+    api_key = settings["MINTMARK_API_KEY"]
+    if not api_key:
+        lines.append(("warn", "gateway key", "not set — paste one in /admin, or set MINTMARK_API_KEY"))
+    else:
+        valid, gateway_detail = probe_gateway(settings["MINTMARK_BASE_URL"], api_key)
+        lines.append(("ok" if valid else "fail", "gateway key", gateway_detail))
+        if not valid:
+            failures += 1
+
+    print()
+    print(f"Doctor — {root}")
+    for status, label, detail in lines:
+        print(f"  {status:<4}  {label:<16}  {detail}")
+    print()
+    if failures:
+        print(f"{failures} check(s) failed.")
+    else:
+        print("Install looks healthy.")
+    return 1 if failures else 0
+
+
 def write_env(path: Path, template: str, values: dict[str, str], force: bool) -> bool:
     """Write the env file; False when an existing file was kept."""
     if path.exists() and not force:
@@ -240,6 +373,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     )
     parser.add_argument("--root", default=str(ROOT), help="checkout holding .env.example")
     parser.add_argument("--check", action="store_true", help="preflight the tools and exit")
+    parser.add_argument("--doctor", action="store_true", help="check a completed install and exit")
     parser.add_argument("--no-input", action="store_true", help="accept every default")
     parser.add_argument("--yes", action="store_true", help="do not ask for confirmation")
     parser.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
@@ -252,6 +386,8 @@ def main(argv=None) -> int:
     args = parse_args(argv)
     root = Path(args.root).resolve()
 
+    if args.doctor:
+        return doctor(root)
     if args.check:
         return preflight()
     if not args.skip_preflight:

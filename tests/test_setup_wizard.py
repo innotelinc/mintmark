@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = """\
@@ -55,6 +55,13 @@ def run(root: Path, *extra: str, stdin=None) -> tuple[int, str]:
     argv = ["--root", str(root), "--skip-preflight", *extra]
     with redirect_stdout(buffer):
         code = wizard.main(argv)
+    return code, buffer.getvalue()
+
+
+def run_doctor(root: Path) -> tuple[int, str]:
+    buffer = io.StringIO()
+    with redirect_stdout(buffer):
+        code = wizard.doctor(root)
     return code, buffer.getvalue()
 
 
@@ -226,6 +233,78 @@ class MockedInputTest(unittest.TestCase):
                 code, _ = run(root, "--force", "--yes")
             self.assertEqual(code, 0)
             self.assertIn("MINTMARK_API_KEY=mm_live_new", (root / ".env").read_text())
+
+
+class DoctorTest(unittest.TestCase):
+    def healthy(self, root: Path, gateway: tuple[bool, str] = (True, "models -> 200")):
+        """Answer every probe as the real service would."""
+        return patch.multiple(
+            wizard,
+            port_available=Mock(return_value=True),
+            probe_health=Mock(return_value=(True, "health -> 200")),
+            probe_gateway=Mock(return_value=gateway),
+        )
+
+    def test_passes_when_the_install_answers(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text("MINTMARK_API_KEY=mm_live_x\nMINTMARK_PORT=8930\n")
+            with self.healthy(root):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 0)
+            self.assertIn("Install looks healthy.", output)
+            self.assertIn("gateway key", output)
+            self.assertIn("published port", output)
+            self.assertIn("data directory", output)
+
+    def test_health_failure_fails_the_check(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text("MINTMARK_PORT=8930\n")
+            with patch.object(wizard, "probe_health", return_value=(False, "health -> refused")), patch.object(
+                wizard, "port_available", return_value=True
+            ):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 1)
+            self.assertIn("fail  health", output)
+            self.assertIn("1 check(s) failed.", output)
+
+    def test_an_unset_key_is_a_warning_not_a_failure(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text("MINTMARK_PORT=8930\n")
+            with self.healthy(root):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 0)
+            self.assertIn("not set", output)
+
+    def test_a_rejected_key_fails_the_check(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text("MINTMARK_API_KEY=mm_live_wrong\nMINTMARK_PORT=8930\n")
+            with self.healthy(root, gateway=(False, "models -> HTTP 401")):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 1)
+            self.assertIn("HTTP 401", output)
+
+    def test_a_missing_env_file_is_reported_and_nothing_is_written(self) -> None:
+        with Workspace() as root:
+            with self.healthy(root):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 0)
+            self.assertIn("missing — run ./setup.sh first", output)
+            self.assertFalse((root / ".env").exists())
+
+    @unittest.skipIf(getattr(os, "geteuid", lambda: -1)() == 0, "root can write anywhere")
+    def test_an_unwritable_data_directory_fails_the_check(self) -> None:
+        with Workspace() as root:
+            data = root / "data"
+            data.mkdir()
+            os.chmod(data, 0o500)
+            (root / ".env").write_text(f"MINTMARK_DATA={data}\nMINTMARK_PORT=8930\n")
+            try:
+                with self.healthy(root):
+                    code, output = run_doctor(root)
+            finally:
+                os.chmod(data, 0o700)
+            self.assertEqual(code, 1)
+            self.assertIn("not writable", output)
 
 
 class HooksTest(unittest.TestCase):
