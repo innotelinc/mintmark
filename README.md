@@ -27,7 +27,7 @@ as **Mintmark Appraisal**.
 | Coin apps flatter the coin and quote a catalogue headline | The appraiser is told to be conservative: a worn common coin comes back worth cents, and empty fields instead of a guessed date or mint mark |
 | A price with no reasoning is unfalsifiable | Every appraisal carries its drivers, its red flags, and 2–4 concrete things to photograph next |
 | Grading needs photos of surfaces nobody sends | It grades what the obverse actually shows, and says what the photo cannot prove |
-| "Sign up to see your results" | No account, no sign-in, no in-app purchase; a collection is keyed to an anonymous id |
+| "Sign up to see your results" | No account and no sign-in; a collection is keyed to an anonymous id. Pro is an optional App Store subscription, and the free app works without it |
 | Photos disappearing into someone else's model account | The vision key stays server-side and the call goes through the estate's own gateway |
 
 > **About Mintmark** — a coin appraisal from a single photo, for collectors and for
@@ -78,6 +78,10 @@ The one rule specific to Mintmark: **it must never flatter a coin.**
 - **The key never reaches a browser** — pasted into `/admin` (stored in the
   database) or set as `MINTMARK_API_KEY`; only a mask like `sk-…80ad` is ever sent
   to a client.
+- **Free, with an optional Pro tier** — 25 appraisals a day free. **Mintmark Pro**
+  ($3.99/month or $24.99/year, through Apple's in-app purchase) raises it to 100
+  and changes nothing else. The server decides the tier from the verified Apple
+  transaction, never from the client; see [docs/premium.md](docs/premium.md).
 
 ## How an appraisal works
 
@@ -188,6 +192,9 @@ docker compose -f compose.selfhost.yml up -d --build
 
 Keep the key in the host environment or an untracked `--env-file`, never in the
 compose file. `MINTMARK_PORT` defaults to 8930 and `MINTMARK_DATA` to `./data`.
+In-app purchases need `APPLE_ISSUER_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY`
+(the App Store Connect API key) in the same env file; without them `/api/billing`
+answers 503 and the app stays on the free tier.
 Once it is up, `./setup.sh --doctor` confirms the running install rather than the
 written one; [RUNBOOK.md](RUNBOOK.md) has the invocation that uses the host's env
 file, and the command exits 1 if `/api/health` or the key check fails.
@@ -251,7 +258,8 @@ lengths. See its header for the three setup steps.
 | Doc | What it covers |
 | --- | --- |
 | [docs/stack.md](docs/stack.md) | Mintmark's role in the Innotel Platform Stack — owns / provides / consumes |
-| [RUNBOOK.md](RUNBOOK.md) | Operating the `mintmark-web` stack: rebuild, key rotation, backups, rollback |
+| [RUNBOOK.md](RUNBOOK.md) | Operating the `mintmark-web` stack: rebuild, key rotation, in-app purchases, backups, rollback |
+| [docs/premium.md](docs/premium.md) | Mintmark Pro: entitlements, App Store products, submission checklist |
 | [mobile/README.md](mobile/README.md) | iOS build, App Store Connect setup, repository secrets |
 | [mobile/STORE-LISTING.md](mobile/STORE-LISTING.md) | The App Store listing copy, limits and submission record |
 | [Landing page](https://innotelinc.github.io/mintmark/) | `web/landing/` — the Unity-themed project page |

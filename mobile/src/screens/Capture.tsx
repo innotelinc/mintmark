@@ -10,7 +10,7 @@ import { Button, Card, Field, Label } from '../ui'
 
 const STAGES = ['Reading the date and lettering', 'Matching the design and mint mark', 'Weighing the grade against recent sales']
 
-export function Capture({ onOpen, onOpenAdmin }: { onOpen: (id: string) => void; onOpenAdmin: () => void }) {
+export function Capture({ onOpen, onOpenAdmin, onUpgrade }: { onOpen: (id: string) => void; onOpenAdmin: () => void; onUpgrade: () => void }) {
   const { data: state } = useAppState()
   const create = useCreateAppraisal()
   const [photo, setPhoto] = useState<PreparedPhoto | null>(null)
@@ -62,6 +62,14 @@ export function Capture({ onOpen, onOpenAdmin }: { onOpen: (id: string) => void;
           <Ionicons name="key-outline" size={16} color={colors.warning} />
           <Text style={styles.noticeText}>Appraisals need a Mintmark gateway key. Add one on the Admin screen.</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.warning} />
+        </Pressable>
+      )}
+
+      {!needsKey && remaining === 0 && (
+        <Pressable onPress={onUpgrade} style={styles.notice} accessibilityRole="button">
+          <Ionicons name="sparkles-outline" size={16} color={colors.accent} />
+          <Text style={styles.noticeText}>Out of appraisals for today. Mintmark Pro raises the daily limit.</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.accent} />
         </Pressable>
       )}
 

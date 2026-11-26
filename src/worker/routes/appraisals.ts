@@ -4,12 +4,13 @@
 
 import { Hono } from 'hono'
 
-import { DAILY_APPRAISAL_LIMIT, DAILY_DEPLOYMENT_LIMIT, MAX_IMAGE_BYTES, MAX_NOTE_CHARS, MAX_THUMB_BYTES } from '../../shared/config'
+import { DAILY_DEPLOYMENT_LIMIT, MAX_IMAGE_BYTES, MAX_NOTE_CHARS, MAX_THUMB_BYTES } from '../../shared/config'
 import type { Appraisal, AppraisalAnalysis } from '../../shared/types'
 import { appraisalsToday, appraisalsTodayAll, id, mapSummary, now, utcDay } from '../db'
 import type { AppContext } from '../env'
 import { readGatewaySettings } from '../gateway'
 import { privateJson } from '../http'
+import { planFor } from '../plan'
 import { VisionError, analyzeCoin } from '../vision'
 
 export const appraisals = new Hono<AppContext>()
@@ -61,8 +62,12 @@ appraisals.post('/', async (c) => {
   const note = typeof body.note === 'string' ? body.note.replace(/\s+/g, ' ').trim().slice(0, MAX_NOTE_CHARS) : ''
 
   if (isBusy(owner)) return c.json({ error: 'busy', message: 'One appraisal at a time, please.' }, 429)
-  if ((await appraisalsToday(db, owner)) >= DAILY_APPRAISAL_LIMIT) {
-    return c.json({ error: 'limit', message: `You have reached today's limit of ${DAILY_APPRAISAL_LIMIT} appraisals.`, resetsAt: utcDay().end }, 429)
+  const plan = await planFor(db, owner)
+  if ((await appraisalsToday(db, owner)) >= plan.limit) {
+    return c.json(
+      { error: 'limit', message: `You have reached today's limit of ${plan.limit} appraisals.`, resetsAt: utcDay().end, plan: plan.tier },
+      429,
+    )
   }
   // Identity is anonymous, so a visitor can earn a fresh allowance by clearing
   // its cookie or its device id. The deployment ceiling is the backstop.

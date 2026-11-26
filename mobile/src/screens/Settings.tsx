@@ -7,12 +7,14 @@ import { untilLabel } from '../format'
 import { colors, radius, shadow } from '../theme'
 import { Badge, Button, Card, Label } from '../ui'
 
-export function Settings({ onOpenAdmin }: { onOpenAdmin: () => void }) {
+export function Settings({ onOpenAdmin, onOpenPaywall }: { onOpenAdmin: () => void; onOpenPaywall: () => void }) {
   const { data: state } = useAppState()
   const clear = useDeleteAllAppraisals()
 
   const limit = state?.usage.limit || DAILY_APPRAISAL_LIMIT
   const used = state?.usage.used ?? 0
+  const plan = state?.plan
+  const isPro = plan?.tier === 'pro'
   // Your allowance is per device and is only a cookie away from being reset, so
   // the server's own ceiling is the number that actually bounds the bill.
   const deployment = state?.deployment
@@ -67,6 +69,27 @@ export function Settings({ onOpenAdmin }: { onOpenAdmin: () => void }) {
           </View>
         )}
       </Card>
+
+      <Text style={styles.sectionLabel}>MINTMARK PRO</Text>
+      <Pressable onPress={onOpenPaywall}>
+        <Card style={styles.row}>
+          <View style={styles.rowIcon}>
+            <Ionicons name={isPro ? 'checkmark-circle' : 'sparkles-outline'} size={17} color={colors.accent} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.rowTitle}>{isPro ? 'Pro' : 'Free'}</Text>
+            <Text style={styles.rowSub} numberOfLines={1}>
+              {isPro && plan
+                ? plan.expiresAt
+                  ? `Renews ${untilLabel(plan.expiresAt)} · ${plan.limit} appraisals a day`
+                  : `${plan.limit} appraisals a day`
+                : `${limit} appraisals a day · tap to see Pro`}
+            </Text>
+          </View>
+          <Badge tone={isPro ? 'success' : 'neutral'}>{isPro ? 'Active' : 'Upgrade'}</Badge>
+          <Ionicons name="chevron-forward" size={16} color={colors.faint} />
+        </Card>
+      </Pressable>
 
       <Text style={styles.sectionLabel}>ADMIN</Text>
       <Pressable onPress={onOpenAdmin}>

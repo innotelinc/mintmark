@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
 
-import { DAILY_APPRAISAL_LIMIT, DAILY_DEPLOYMENT_LIMIT } from '../../shared/config'
+import { DAILY_DEPLOYMENT_LIMIT } from '../../shared/config'
 import type { AppState } from '../../shared/types'
 import { appraisalsToday, appraisalsTodayAll, utcDay } from '../db'
 import type { AppContext } from '../env'
 import { maskKey, readGatewaySettings } from '../gateway'
 import { privateJson } from '../http'
+import { planFor } from '../plan'
 
 export const state = new Hono<AppContext>()
 
@@ -13,7 +14,9 @@ export const state = new Hono<AppContext>()
 // itself), what model answers, and how much of the daily allowance is left.
 state.get('/', async (c) => {
   const db = c.get('db')
+  const owner = c.get('visitor')
   const settings = await readGatewaySettings(c.env, db)
+  const plan = await planFor(db, owner)
   const body: AppState = {
     capabilities: {
       vision: Boolean(settings.key),
@@ -27,10 +30,11 @@ state.get('/', async (c) => {
       keyHint: settings.key ? maskKey(settings.key) : null,
     },
     usage: {
-      used: await appraisalsToday(db, c.get('visitor')),
-      limit: DAILY_APPRAISAL_LIMIT,
+      used: await appraisalsToday(db, owner),
+      limit: plan.limit,
       resetsAt: utcDay().end,
     },
+    plan,
     deployment: {
       used: await appraisalsTodayAll(db),
       limit: DAILY_DEPLOYMENT_LIMIT,

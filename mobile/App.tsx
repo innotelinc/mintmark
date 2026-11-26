@@ -6,11 +6,12 @@ import { File, Paths } from 'expo-file-system'
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { getApiBase, loadApiBase } from './src/api'
+import { loadApiBase } from './src/api'
 import { Admin } from './src/screens/Admin'
 import { AppraisalScreen } from './src/screens/AppraisalScreen'
 import { Capture } from './src/screens/Capture'
 import { Collection } from './src/screens/Collection'
+import { Paywall } from './src/screens/Paywall'
 import { ServerSetup } from './src/screens/ServerSetup'
 import { Settings } from './src/screens/Settings'
 import { colors } from './src/theme'
@@ -66,7 +67,7 @@ function useCaptureScript(apply: (stack: Route[]) => void) {
 }
 
 type Tab = 'capture' | 'collection' | 'settings'
-type Route = { name: Tab } | { name: 'admin' } | { name: 'appraisal'; id: string }
+type Route = { name: Tab } | { name: 'admin' } | { name: 'paywall' } | { name: 'appraisal'; id: string }
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -140,9 +141,16 @@ function Root() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.body}>
-        {top.name === 'capture' && <Capture onOpen={(id) => push({ name: 'appraisal', id })} onOpenAdmin={() => push({ name: 'admin' })} />}
+        {top.name === 'capture' && (
+          <Capture
+            onOpen={(id) => push({ name: 'appraisal', id })}
+            onOpenAdmin={() => push({ name: 'admin' })}
+            onUpgrade={() => push({ name: 'paywall' })}
+          />
+        )}
         {top.name === 'collection' && <Collection onOpen={(id) => push({ name: 'appraisal', id })} onNew={() => tab('capture')} />}
-        {top.name === 'settings' && <Settings onOpenAdmin={() => push({ name: 'admin' })} />}
+        {top.name === 'settings' && <Settings onOpenAdmin={() => push({ name: 'admin' })} onOpenPaywall={() => push({ name: 'paywall' })} />}
+        {top.name === 'paywall' && <Paywall onBack={back} />}
         {top.name === 'admin' && <Admin onBack={back} />}
         {top.name === 'appraisal' && <AppraisalScreen id={top.id} onBack={back} />}
       </View>

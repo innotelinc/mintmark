@@ -124,6 +124,20 @@ export const APPRAISAL_SCHEMA = {
 
 /** Per-visitor limits. Appraisals are counted per UTC day. */
 export const DAILY_APPRAISAL_LIMIT = 25
+
+/**
+ * Mintmark Pro, sold through Apple's in-app purchase. The app stays free at the
+ * allowance above; Pro raises it. The product ids are fixed by App Store Connect —
+ * changing one means creating a new product there and editing this list — and each
+ * is an auto-renewable subscription in the `Mintmark Pro` group.
+ */
+export const PRO_MONTHLY_PRODUCT = 'us.inotel.mintmark.pro.monthly'
+export const PRO_YEARLY_PRODUCT = 'us.inotel.mintmark.pro.yearly'
+export const PRO_PRODUCT_IDS = [PRO_MONTHLY_PRODUCT, PRO_YEARLY_PRODUCT] as const
+export type ProProductId = (typeof PRO_PRODUCT_IDS)[number]
+export const isProProduct = (value: string): value is ProProductId => (PRO_PRODUCT_IDS as readonly string[]).includes(value)
+/** What a Pro subscriber gets per UTC day. */
+export const PRO_DAILY_APPRAISAL_LIMIT = 100
 /**
  * The deployment's own ceiling for the day, across every visitor. Identity is
  * anonymous, so a client that clears its cookie or rotates its device id earns a

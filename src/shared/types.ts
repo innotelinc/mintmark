@@ -1,5 +1,7 @@
 // Types shared by the Worker (src/worker) and the app (src/app).
 
+import type { ProProductId } from './config'
+
 /** One appraisal, exactly as the vision model returns it. */
 export interface AppraisalAnalysis {
   identified: boolean
@@ -53,6 +55,20 @@ export interface AppraisalSummary {
   createdAt: number
 }
 
+/**
+ * The tier this visitor is on. A purchase is the only thing that changes it,
+ * and it is decided by the Worker from the entitlement table, never by a client.
+ */
+export interface Plan {
+  tier: 'free' | 'pro'
+  /** Appraisals allowed per UTC day at this tier. */
+  limit: number
+  /** The Apple product behind a Pro plan; null on the free tier. */
+  productId: ProProductId | null
+  /** When the Pro subscription renews or lapses, in ms; null on the free tier. */
+  expiresAt: number | null
+}
+
 /** What the app draws itself from. The key itself is never in here. */
 export interface AppState {
   capabilities: {
@@ -70,6 +86,8 @@ export interface AppState {
     keyHint: string | null
   }
   usage: { used: number; limit: number; resetsAt: number }
+  /** What the visitor has bought: free, or Pro with its daily limit. */
+  plan: Plan
   /**
    * The deployment's own day, across every visitor. Ordinarily private to the
    * owner, but it is here so the admin panel can show the ceiling before it is

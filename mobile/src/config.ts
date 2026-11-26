@@ -1,6 +1,17 @@
 export const BRAND = 'Mintmark'
 export const VISION_MODEL_LABEL = 'Mintmark gateway'
 export const DAILY_APPRAISAL_LIMIT = 25
+/**
+ * Mintmark Pro. These ids must exist in App Store Connect as auto-renewable
+ * subscriptions in one `Mintmark Pro` group before the paywall can load prices;
+ * the Worker checks the purchase against Apple, so a build with a missing product
+ * shows no offer rather than selling something the server will not honour.
+ */
+export const PRO_MONTHLY_PRODUCT = 'us.inotel.mintmark.pro.monthly'
+export const PRO_YEARLY_PRODUCT = 'us.inotel.mintmark.pro.yearly'
+export const PRO_PRODUCT_IDS = [PRO_MONTHLY_PRODUCT, PRO_YEARLY_PRODUCT] as const
+/** What the server allows a Pro subscriber per UTC day. */
+export const PRO_DAILY_APPRAISAL_LIMIT = 100
 export const MAX_NOTE_CHARS = 240
 
 /**

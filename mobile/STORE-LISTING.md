@@ -86,7 +86,7 @@ The screenshots are uploaded and processed in both slots.
 | Primary category | **Reference** |
 | Secondary category | **Utilities** |
 | Age rating | **4+** — answer "No" to every content category |
-| Price | **Free**, no in-app purchases |
+| Price | **Free**, with an optional **Mintmark Pro** subscription from 1.2 (1.1 has no in-app purchases) |
 | Copyright | `2026 Denovo Credit Corporation` |
 
 A name with a keyword in it ranks better than one without, if you want to change
@@ -290,6 +290,37 @@ the app holds no API key. If the server cannot be reached, Settings → "Gateway
 key and server" lets you point the app at another origin. Each device is limited
 to 25 appraisals a day.
 ```
+
+## In-app purchases — Mintmark Pro (from 1.2)
+
+The app is free and stays usable without paying. Pro is one auto-renewable
+subscription group, **Mintmark Pro**, with two products that unlock the same
+entitlement: 100 appraisals a day instead of 25. Everything else — identification,
+grading, the value range, the collection — is identical on both tiers.
+
+| Product id | Duration | US price | What it does |
+| --- | --- | --- | --- |
+| `us.inotel.mintmark.pro.monthly` | 1 month | $3.99 | 100 appraisals a day |
+| `us.inotel.mintmark.pro.yearly` | 1 year | $24.99 | 100 appraisals a day |
+
+Both need a localized display name (`Mintmark Pro`), the description `100 coin
+appraisals a day instead of 25. Everything else stays free.`, and a review
+screenshot of the paywall. They must be attached to the 1.2 submission, or the
+paywall ships with nothing to buy. No free trial, no introductory offer, no
+lifetime unlock yet.
+
+Submission changes that come with the tier:
+
+- **App Privacy** gains *Purchases → Purchase History*: collected **yes**, linked
+to you **no**, tracking **no**, purpose **App Functionality**. The stored value is
+Apple's transaction id, kept against the anonymous device id.
+- **Review notes** should say the app is free, that Pro is optional, and give the
+  sandbox Apple ID used for the paywall screenshot.
+- The iPhone and iPad screenshot sets should gain the paywall once it is captured
+  in a sandbox account that owns both products.
+
+The mechanics — entitlement table, Apple verification, the server-side gate, and
+what has not been verified — are in [../docs/premium.md](../docs/premium.md).
 
 ## Assets
 

@@ -11,6 +11,15 @@ export interface Env {
   // shared/config.ts.
   MINTMARK_BASE_URL?: string
   MINTMARK_MODEL?: string
+  // In-app purchases. The three App Store Connect values authenticate the App
+  // Store Server API call that turns a StoreKit transaction into an entitlement;
+  // without them /api/billing answers 503 and the app stays on the free tier.
+  APPLE_ISSUER_ID?: string
+  APPLE_KEY_ID?: string
+  /** The whole .p8 block, newlines included. Server-side only. */
+  APPLE_PRIVATE_KEY?: string
+  /** `sandbox` to try the sandbox first (a TestFlight-only server); production otherwise. */
+  APPLE_ENVIRONMENT?: string
 }
 
 export type Variables = {

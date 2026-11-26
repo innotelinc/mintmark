@@ -5,6 +5,7 @@ import type { AppContext, Env } from './env'
 import { appCors, sameOrigin } from './http'
 import { admin } from './routes/admin'
 import { appraisals } from './routes/appraisals'
+import { billing } from './routes/billing'
 import { state } from './routes/state'
 import { identify } from './visitor'
 
@@ -19,6 +20,7 @@ api.use('*', appCors, requireDb, identify, sameOrigin)
 api.route('/state', state)
 api.route('/admin', admin)
 api.route('/appraisals', appraisals)
+api.route('/billing', billing)
 app.route('/api', api)
 
 // The App Store listing hands reviewers these two URLs, so they answer with a

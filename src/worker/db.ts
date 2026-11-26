@@ -33,6 +33,18 @@ const SCHEMA = [
     value TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   )`,
+  // What a visitor has bought. One row per visitor: the latest Pro subscription
+  // wins, and an expired row is simply ignored by planFor. Apple's ids are kept
+  // for support questions, not for identity — there is still no account.
+  `CREATE TABLE IF NOT EXISTS entitlements (
+    owner_sub TEXT PRIMARY KEY,
+    product_id TEXT NOT NULL,
+    transaction_id TEXT NOT NULL,
+    original_transaction_id TEXT NOT NULL DEFAULT '',
+    environment TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
 ]
 
 let ready: Promise<void> | undefined
@@ -105,6 +117,48 @@ export async function putSetting(db: D1Database, key: string, value: string): Pr
 
 export async function deleteSetting(db: D1Database, key: string): Promise<void> {
   await db.prepare(`DELETE FROM app_settings WHERE key = ?`).bind(key).run()
+}
+
+export type Entitlement = {
+  productId: string
+  transactionId: string
+  originalTransactionId: string
+  /** `production` or `sandbox`: which Apple environment verified it. */
+  environment: string
+  /** When the subscription lapses, in ms. */
+  expiresAt: number
+}
+
+export async function readEntitlement(db: D1Database, owner: string): Promise<Entitlement | null> {
+  const row = await db
+    .prepare(`SELECT product_id, transaction_id, original_transaction_id, environment, expires_at FROM entitlements WHERE owner_sub = ?`)
+    .bind(owner)
+    .first<Record<string, unknown>>()
+  if (!row) return null
+  return {
+    productId: String(row.product_id ?? ''),
+    transactionId: String(row.transaction_id ?? ''),
+    originalTransactionId: String(row.original_transaction_id ?? ''),
+    environment: String(row.environment ?? ''),
+    expiresAt: Number(row.expires_at ?? 0),
+  }
+}
+
+export async function saveEntitlement(db: D1Database, owner: string, entitlement: Entitlement): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO entitlements (owner_sub, product_id, transaction_id, original_transaction_id, environment, expires_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(owner_sub) DO UPDATE SET
+         product_id = excluded.product_id,
+         transaction_id = excluded.transaction_id,
+         original_transaction_id = excluded.original_transaction_id,
+         environment = excluded.environment,
+         expires_at = excluded.expires_at,
+         updated_at = excluded.updated_at`,
+    )
+    .bind(owner, entitlement.productId, entitlement.transactionId, entitlement.originalTransactionId, entitlement.environment, entitlement.expiresAt, now())
+    .run()
 }
 
 export function mapSummary(row: Record<string, unknown>): AppraisalSummary {

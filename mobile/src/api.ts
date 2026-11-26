@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { DEFAULT_API_BASE } from './config'
-import type { Appraisal, AppraisalSummary, AppState } from './types'
+import type { Appraisal, AppraisalSummary, AppState, Plan } from './types'
 
 const STORE_KEY = 'mintmark.apiBase'
 const VISITOR_KEY = 'mintmark.visitor'
@@ -181,6 +181,22 @@ export function useDeleteAllAppraisals() {
       client.removeQueries({ queryKey: key('appraisals') })
       void client.invalidateQueries({ queryKey: key('state') })
     },
+  })
+}
+
+/**
+ * Hands a StoreKit transaction id to the Worker, which asks Apple about it and
+ * stores the entitlement. Resolves with the plan the server decided on.
+ */
+export function useVerifyPurchase() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (transactionId: string) =>
+      api<{ plan: Plan; purchase: { productId: string; expiresAt: number } }>('/billing/verify', {
+        method: 'POST',
+        json: { transactionId },
+      }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: key('state') }),
   })
 }
 

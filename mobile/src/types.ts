@@ -51,6 +51,14 @@ export interface AppraisalSummary {
   createdAt: number
 }
 
+/** What the visitor has bought. Decided by the Worker, never by the app. */
+export interface Plan {
+  tier: 'free' | 'pro'
+  limit: number
+  productId: string | null
+  expiresAt: number | null
+}
+
 export interface AppState {
   capabilities: { vision: boolean; database: boolean; requireKey: boolean }
   gateway: {
@@ -60,6 +68,8 @@ export interface AppState {
     keyHint: string | null
   }
   usage: { used: number; limit: number; resetsAt: number }
+  /** The tier and its allowance. Absent on a server older than the paywall. */
+  plan?: Plan
   /** The server's own day, across every visitor. Absent on an older server. */
   deployment?: { used: number; limit: number }
 }

@@ -64,6 +64,26 @@ Edit `MINTMARK_API_KEY` in `/root/mintmark-web.env`, then `$C up -d` — the con
 recreated with the new value and the volume is kept. A key pasted into `/admin` lives in
 the database instead and wins over the environment; it is cleared there, not here.
 
+## In-app purchases (Mintmark Pro)
+
+The subscription is verified against Apple, so the host needs an App Store Connect
+API key: `APPLE_ISSUER_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` (the whole .p8
+block) in `/root/mintmark-web.env`, then `$C up -d`. Without them the app stays on
+the free tier and `POST /api/billing/verify` answers 503 — nothing crashes.
+
+```sh
+$C exec web sh -c 'wget -qO- http://127.0.0.1:8080/api/billing'   # {"plan":{"tier":"free",...}}
+```
+
+A purchase that will not activate is almost always one of: the product id in
+`src/shared/config.ts` not matching App Store Connect, the checkout being in the
+wrong Apple environment (production is tried before the sandbox), or the key
+lacking the App Manager role. `entitlements` is the table to read: one row per
+device id, with `expires_at` and the Apple `environment` that verified it.
+
+Products, prices, the review checklist and what was not verified are in
+[docs/premium.md](docs/premium.md).
+
 ## Back up the data
 
 ```sh
