@@ -207,6 +207,32 @@ def write_env(path: Path, template: str, values: dict[str, str], force: bool) ->
     return True
 
 
+HOOK_FILES = ("commit-msg", "pre-commit")
+
+
+def install_hooks(root: Path) -> bool:
+    """Point git at the tracked attribution guards and make them executable.
+
+    Git silently ignores a hook it cannot execute, and these shipped mode 644
+    once, so the chmod is part of installing them rather than a convenience.
+    """
+    hooks = root / ".githooks"
+    if not (root / ".git").exists() or not hooks.is_dir():
+        return False
+    for name in HOOK_FILES:
+        path = hooks / name
+        if path.exists():
+            os.chmod(path, 0o755)
+    result = subprocess.run(
+        ("git", "config", "core.hooksPath", ".githooks"),
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def parse_args(argv=None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="./setup.sh",
@@ -288,6 +314,14 @@ def main(argv=None) -> int:
         print(f"Wrote {root / '.env'} (mode 600)")
     else:
         print(f"Kept existing {root / '.env'} — pass --force to replace it")
+
+    if install_hooks(root):
+        print("Attribution guards installed (core.hooksPath .githooks)")
+    elif (root / ".git").exists():
+        print(
+            "Could not install the attribution guards — run `git config core.hooksPath .githooks`",
+            file=sys.stderr,
+        )
 
     print()
     print("Next steps")

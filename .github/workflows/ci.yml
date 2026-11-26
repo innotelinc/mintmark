@@ -54,3 +54,18 @@ jobs:
           grep -qi '<title>' "$f" || { echo "::error::landing has no <title>"; exit 1; }
           grep -qi 'og:title' "$f" || { echo "::error::landing has no og:title"; exit 1; }
           echo "landing: ok"
+
+  wizard:
+    name: Setup wizard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The wizard writes .env and installs the attribution guards; a change
+      # that breaks --force preservation or hook installation must fail here.
+      - name: Wizard tests
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests -p 'test_*.py' -v

@@ -228,5 +228,36 @@ class MockedInputTest(unittest.TestCase):
             self.assertIn("MINTMARK_API_KEY=mm_live_new", (root / ".env").read_text())
 
 
+class HooksTest(unittest.TestCase):
+    def test_installs_the_attribution_guards(self) -> None:
+        with Workspace() as root:
+            subprocess.run(("git", "init", "-q"), cwd=root, check=True, capture_output=True)
+            hooks = root / ".githooks"
+            hooks.mkdir()
+            for name in ("commit-msg", "pre-commit"):
+                path = hooks / name
+                path.write_text("#!/bin/sh\nexit 0\n")
+                os.chmod(path, 0o644)
+            code, output = run(root, "--no-input", "--yes")
+            self.assertEqual(code, 0)
+            self.assertIn("Attribution guards installed", output)
+            config = subprocess.run(
+                ("git", "config", "--get", "core.hooksPath"),
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(config.stdout.strip(), ".githooks")
+            for name in ("commit-msg", "pre-commit"):
+                self.assertTrue(os.access(hooks / name, os.X_OK), name)
+
+    def test_a_checkout_without_git_is_fine(self) -> None:
+        with Workspace() as root:
+            code, output = run(root, "--no-input", "--yes")
+            self.assertEqual(code, 0)
+            self.assertNotIn("Attribution guards installed", output)
+
+
 if __name__ == "__main__":
     unittest.main()
