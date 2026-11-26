@@ -255,6 +255,19 @@ def probe_gateway(base_url: str, api_key: str, timeout: float = 10.0) -> tuple[b
     return True, f"{url} -> 200"
 
 
+def probe_state(port: int, timeout: float = 3.0) -> dict | None:
+    """`GET /api/state` — where the running service resolved its key from."""
+    url = f"http://127.0.0.1:{port}/api/state"
+    try:
+        with DIRECT.open(url, timeout=timeout) as response:
+            if response.status != 200:
+                return None
+            payload = json.loads(response.read().decode() or "{}")
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def doctor_settings(root: Path) -> dict[str, str]:
     """Defaults, overlaid with the checkout's .env, then the environment."""
     answers = Answers.defaults()
@@ -312,8 +325,20 @@ def doctor(root: Path) -> int:
         lines.append(("fail", "published port", f"{port} is held by another process"))
         failures += 1
 
+    # Where the running service gets its key decides the check. A key pasted into
+    # /admin lives in the database and wins over the environment, so this shell
+    # has no copy to send and there is nothing to warn about.
     api_key = settings["MINTMARK_API_KEY"]
-    if not api_key:
+    gateway = (probe_state(port) or {}).get("gateway") if healthy else None
+    key_source = gateway.get("keySource") if isinstance(gateway, dict) else None
+    key_hint = gateway.get("keyHint") if isinstance(gateway, dict) else None
+    shown = key_hint or "hint hidden"
+
+    if key_source == "stored":
+        lines.append(("ok", "gateway key", f"stored in the database ({shown}) — /v1/models probe skipped"))
+    elif key_source == "env" and not api_key:
+        lines.append(("ok", "gateway key", f"set in the service environment ({shown}) — source the env file to probe it"))
+    elif not api_key:
         lines.append(("warn", "gateway key", "not set — paste one in /admin, or set MINTMARK_API_KEY"))
     else:
         valid, gateway_detail = probe_gateway(settings["MINTMARK_BASE_URL"], api_key)

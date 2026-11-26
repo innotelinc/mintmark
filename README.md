@@ -105,8 +105,11 @@ for the gateway key without echoing it) and installs the attribution guards.
 `./setup.sh --doctor` then checks an install that should be working — the data
 directory, `GET /api/health` on `MINTMARK_PORT`, whether that port is free or
 already serving, and the key against `GET /v1/models` — printing `ok`, `warn`
-or `fail` per check and exiting 1 if any fail. An unset key and a data
-directory compose has not created yet are warnings, not failures.
+or `fail` per check and exiting 1 if any fail. It reads `/api/state` before
+the key check: a key pasted into `/admin` lives in the database, so it is
+reported as `ok` with its hint and the `/v1/models` probe is skipped, since the
+shell has no copy of it. An unset key and a data directory compose has not
+created yet are warnings, not failures.
 
 Open the app, then `/admin`, and paste a Mintmark key. Without a key the capture
 page explains what is missing; the app unlocks on its own once a key is saved.

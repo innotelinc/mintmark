@@ -73,11 +73,23 @@ class StubService(http.server.BaseHTTPRequestHandler):
     """Answers the two endpoints --doctor talks to, as the real ones do."""
 
     health = {"ok": True}
+    state = {
+        "capabilities": {"vision": True, "database": True, "requireKey": False},
+        "gateway": {
+            "model": "gemini/gemini-3-flash-preview",
+            "baseUrl": "http://127.0.0.1/v1",
+            "keySource": "env",
+            "keyHint": "mm_\u2026stub",
+        },
+        "usage": {"used": 0, "limit": 25, "resetsAt": 0},
+    }
 
     def do_GET(self):
         status, body = 404, {"error": "not found"}
         if self.path == "/api/health":
             status, body = 200, self.health
+        elif self.path == "/api/state":
+            status, body = 200, self.state
         elif self.path == "/v1/models":
             if self.headers.get("Authorization") == "Bearer mm_live_stub":
                 status, body = 200, {"data": [{"id": "gemini/gemini-3-flash-preview"}, {"id": "gemini/gemini-4-argon"}]}
@@ -308,6 +320,15 @@ class ProbeHttpTest(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("/api/health", detail)
 
+    def test_state_reports_where_the_running_key_lives(self) -> None:
+        with stub_service() as port:
+            state = wizard.probe_state(port, timeout=5)
+        self.assertEqual(state["gateway"]["keySource"], "env")
+        self.assertEqual(state["gateway"]["keyHint"], "mm_\u2026stub")
+
+    def test_state_is_none_when_the_service_does_not_answer(self) -> None:
+        self.assertIsNone(wizard.probe_state(free_port(), timeout=2))
+
     def test_gateway_accepts_the_key_and_counts_the_models(self) -> None:
         with stub_service() as port:
             ok, detail = wizard.probe_gateway(f"http://127.0.0.1:{port}/v1", "mm_live_stub", timeout=5)
@@ -327,12 +348,15 @@ class ProbeHttpTest(unittest.TestCase):
 
 
 class DoctorTest(unittest.TestCase):
-    def healthy(self, root: Path, gateway: tuple[bool, str] = (True, "models -> 200")):
+    def healthy(self, root: Path, gateway: tuple[bool, str] = (True, "models -> 200"), state=None):
         """Answer every probe as the real service would."""
+        if state is None:
+            state = {"gateway": {"keySource": None, "keyHint": None}}
         return patch.multiple(
             wizard,
             port_available=Mock(return_value=True),
             probe_health=Mock(return_value=(True, "health -> 200")),
+            probe_state=Mock(return_value=state),
             probe_gateway=Mock(return_value=gateway),
         )
 
@@ -365,6 +389,63 @@ class DoctorTest(unittest.TestCase):
                 code, output = run_doctor(root)
             self.assertEqual(code, 0)
             self.assertIn("not set", output)
+
+    def test_a_database_key_is_reported_and_not_probed(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text("MINTMARK_PORT=8930\n")
+            gateway = Mock(return_value=(True, "models -> 200"))
+            with patch.multiple(
+                wizard,
+                port_available=Mock(return_value=True),
+                probe_health=Mock(return_value=(True, "health -> 200")),
+                probe_state=Mock(return_value={"gateway": {"keySource": "stored", "keyHint": "sk-\u202680ad"}}),
+                probe_gateway=gateway,
+            ):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 0)
+            self.assertIn("stored in the database (sk-\u202680ad)", output)
+            self.assertIn("/v1/models probe skipped", output)
+            gateway.assert_not_called()
+
+    def test_a_database_key_wins_over_a_local_environment_key(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text("MINTMARK_PORT=8930\nMINTMARK_API_KEY=mm_live_env\n")
+            gateway = Mock(return_value=(False, "models -> HTTP 401"))
+            with patch.multiple(
+                wizard,
+                port_available=Mock(return_value=True),
+                probe_health=Mock(return_value=(True, "health -> 200")),
+                probe_state=Mock(return_value={"gateway": {"keySource": "stored", "keyHint": "sk-\u202680ad"}}),
+                probe_gateway=gateway,
+            ):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 0)
+            self.assertIn("stored in the database", output)
+            gateway.assert_not_called()
+
+    def test_an_environment_key_without_a_local_copy_is_ok(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text("MINTMARK_PORT=8930\n")
+            gateway = Mock(return_value=(True, "models -> 200"))
+            with patch.multiple(
+                wizard,
+                port_available=Mock(return_value=True),
+                probe_health=Mock(return_value=(True, "health -> 200")),
+                probe_state=Mock(return_value={"gateway": {"keySource": "env", "keyHint": "mm_\u202680ad"}}),
+                probe_gateway=gateway,
+            ):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 0)
+            self.assertIn("set in the service environment", output)
+            gateway.assert_not_called()
+
+    def test_no_key_anywhere_is_still_a_warning(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text("MINTMARK_PORT=8930\n")
+            with self.healthy(root, state=None):
+                code, output = run_doctor(root)
+            self.assertEqual(code, 0)
+            self.assertIn("not set — paste one in /admin", output)
 
     def test_a_rejected_key_fails_the_check(self) -> None:
         with Workspace() as root:

@@ -51,9 +51,12 @@ The container's healthcheck hits `/api/health` every 30 s; `Up (unhealthy)` mean
 worker is not answering on `8080` and `$C logs web` will say why.
 
 `./setup.sh --doctor` reads `MINTMARK_*` from the environment ahead of `.env`, which is
-why the check sources `/root/mintmark-web.env` first: without it the key is reported as
-unset. It prints one line per check (`ok`, `warn`, `fail`) and exits 1 when any check
-fails, so a rebuild is not called done until it says `Install looks healthy.`
+why the check sources `/root/mintmark-web.env` first: that is the key the container
+sends. It also reads `/api/state`, so a key pasted into `/admin` is reported as
+`stored in the database` with its hint and the `/v1/models` probe is skipped rather
+than warned about; only a service with no key at all is a warning. It prints one line
+per check (`ok`, `warn`, `fail`) and exits 1 when any check fails, so a rebuild is not
+called done until it says `Install looks healthy.`
 
 ## Rotate the gateway key
 
