@@ -100,6 +100,14 @@ npm run dev        # http://localhost:5173 with local D1 (Miniflare)
 npm run build      # dist/client (assets) + dist/mintmark/index.js (Worker)
 ```
 
+`./setup.sh` does the setup half: it writes `.env` from `.env.example` (asking
+for the gateway key without echoing it) and installs the attribution guards.
+`./setup.sh --doctor` then checks an install that should be working — the data
+directory, `GET /api/health` on `MINTMARK_PORT`, whether that port is free or
+already serving, and the key against `GET /v1/models` — printing `ok`, `warn`
+or `fail` per check and exiting 1 if any fail. An unset key and a data
+directory compose has not created yet are warnings, not failures.
+
 Open the app, then `/admin`, and paste a Mintmark key. Without a key the capture
 page explains what is missing; the app unlocks on its own once a key is saved.
 
@@ -177,6 +185,10 @@ docker compose -f compose.selfhost.yml up -d --build
 
 Keep the key in the host environment or an untracked `--env-file`, never in the
 compose file. `MINTMARK_PORT` defaults to 8930 and `MINTMARK_DATA` to `./data`.
+Once it is up, `./setup.sh --doctor` confirms the running install rather than the
+written one; [RUNBOOK.md](RUNBOOK.md) has the invocation that uses the host's env
+file, and the command exits 1 if `/api/health` or the key check fails.
+
 Rebuilds, key rotation, backups and rollback are in [RUNBOOK.md](RUNBOOK.md).
 
 The edge holds one proxy host for `mint.innotel.tech` → `http://192.168.1.113:8930`

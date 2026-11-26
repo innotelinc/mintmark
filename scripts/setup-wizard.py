@@ -199,6 +199,11 @@ def preflight() -> int:
     return 0
 
 
+# An HTTP_PROXY exported in the operator's shell must not be handed a loopback
+# health check, and the box reaches the gateway directly; both are opened bare.
+DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def port_available(port: int, host: str = "127.0.0.1") -> bool:
     """True when nothing holds the port (or it is already ours to take)."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -214,7 +219,7 @@ def probe_health(port: int, timeout: float = 3.0) -> tuple[bool, str]:
     """`GET /api/health` on the published port; the worker answers {ok: true}."""
     url = f"http://127.0.0.1:{port}/api/health"
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as response:
+        with DIRECT.open(url, timeout=timeout) as response:
             status = response.status
             body = json.loads(response.read().decode() or "{}")
     except urllib.error.HTTPError as error:
@@ -234,7 +239,7 @@ def probe_gateway(base_url: str, api_key: str, timeout: float = 10.0) -> tuple[b
         headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with DIRECT.open(request, timeout=timeout) as response:
             status = response.status
             payload = json.loads(response.read().decode() or "{}")
     except urllib.error.HTTPError as error:
@@ -263,8 +268,10 @@ def doctor_settings(root: Path) -> dict[str, str]:
     for key, value in read_env(root / ".env").items():
         if key in values:
             values[key] = value
-    # The service reads the environment too; whatever it would see wins here.
-    values["MINTMARK_API_KEY"] = os.environ.get("MINTMARK_API_KEY", values["MINTMARK_API_KEY"])
+    # The service reads the environment too, and the box keeps its settings in
+    # /root/mintmark-web.env rather than .env, so a sourced shell wins here.
+    for key in values:
+        values[key] = os.environ.get(key, values[key])
     return values
 
 

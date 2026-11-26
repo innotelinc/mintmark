@@ -1,15 +1,19 @@
 """Tests for scripts/setup-wizard.py — the guided first-install for Mintmark."""
 from __future__ import annotations
 
+import http.server
 import importlib.util
 import io
+import json
 import os
+import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -63,6 +67,55 @@ def run_doctor(root: Path) -> tuple[int, str]:
     with redirect_stdout(buffer):
         code = wizard.doctor(root)
     return code, buffer.getvalue()
+
+
+class StubService(http.server.BaseHTTPRequestHandler):
+    """Answers the two endpoints --doctor talks to, as the real ones do."""
+
+    health = {"ok": True}
+
+    def do_GET(self):
+        status, body = 404, {"error": "not found"}
+        if self.path == "/api/health":
+            status, body = 200, self.health
+        elif self.path == "/v1/models":
+            if self.headers.get("Authorization") == "Bearer mm_live_stub":
+                status, body = 200, {"data": [{"id": "gemini/gemini-3-flash-preview"}, {"id": "gemini/gemini-4-argon"}]}
+            else:
+                status, body = 401, {"error": "unauthorized"}
+        payload = json.dumps(body).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, *args):
+        pass
+
+
+class UnhealthyService(StubService):
+    health = {"ok": False}
+
+
+@contextmanager
+def stub_service(handler=StubService):
+    """Serve the stub on a free loopback port for the length of the block."""
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield server.server_address[1]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
 
 
 class MergeEnvTest(unittest.TestCase):
@@ -233,6 +286,44 @@ class MockedInputTest(unittest.TestCase):
                 code, _ = run(root, "--force", "--yes")
             self.assertEqual(code, 0)
             self.assertIn("MINTMARK_API_KEY=mm_live_new", (root / ".env").read_text())
+
+
+class ProbeHttpTest(unittest.TestCase):
+    """The probes over a real socket, so CI covers their HTTP handling."""
+
+    def test_health_reads_the_workers_answer(self) -> None:
+        with stub_service() as port:
+            ok, detail = wizard.probe_health(port, timeout=5)
+        self.assertTrue(ok, detail)
+        self.assertIn("/api/health -> 200", detail)
+
+    def test_health_rejects_a_service_that_does_not_say_ok(self) -> None:
+        with stub_service(UnhealthyService) as port:
+            ok, detail = wizard.probe_health(port, timeout=5)
+        self.assertFalse(ok)
+        self.assertIn("unexpected body", detail)
+
+    def test_health_reports_a_closed_port(self) -> None:
+        ok, detail = wizard.probe_health(free_port(), timeout=2)
+        self.assertFalse(ok)
+        self.assertIn("/api/health", detail)
+
+    def test_gateway_accepts_the_key_and_counts_the_models(self) -> None:
+        with stub_service() as port:
+            ok, detail = wizard.probe_gateway(f"http://127.0.0.1:{port}/v1", "mm_live_stub", timeout=5)
+        self.assertTrue(ok, detail)
+        self.assertIn("200 (2 models)", detail)
+
+    def test_gateway_reports_a_rejected_key(self) -> None:
+        with stub_service() as port:
+            ok, detail = wizard.probe_gateway(f"http://127.0.0.1:{port}/v1", "mm_live_wrong", timeout=5)
+        self.assertFalse(ok)
+        self.assertIn("HTTP 401", detail)
+
+    def test_gateway_reports_an_unreachable_host(self) -> None:
+        ok, detail = wizard.probe_gateway(f"http://127.0.0.1:{free_port()}/v1", "mm_live_stub", timeout=2)
+        self.assertFalse(ok)
+        self.assertIn("/v1/models", detail)
 
 
 class DoctorTest(unittest.TestCase):

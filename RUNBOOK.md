@@ -40,6 +40,8 @@ A rebuild never touches `/root/mintmark-data`, so appraisals survive it.
 ```sh
 $C ps
 $C logs --tail 50 web
+set -a; . /root/mintmark-web.env; set +a   # the key the container runs with, not written anywhere
+./setup.sh --doctor                        # data dir, /api/health on 8930, port, GET /v1/models
 curl -fsS https://mint.innotel.tech/api/health
 curl -fsS https://mint.innotel.tech/api/state      # requireKey:false, keySource:"env"
 for u in / /privacy /support; do curl -s -o /dev/null -w "$u %{http_code}\n" "https://mint.innotel.tech$u"; done
@@ -47,6 +49,11 @@ for u in / /privacy /support; do curl -s -o /dev/null -w "$u %{http_code}\n" "ht
 
 The container's healthcheck hits `/api/health` every 30 s; `Up (unhealthy)` means the
 worker is not answering on `8080` and `$C logs web` will say why.
+
+`./setup.sh --doctor` reads `MINTMARK_*` from the environment ahead of `.env`, which is
+why the check sources `/root/mintmark-web.env` first: without it the key is reported as
+unset. It prints one line per check (`ok`, `warn`, `fail`) and exits 1 when any check
+fails, so a rebuild is not called done until it says `Install looks healthy.`
 
 ## Rotate the gateway key
 
