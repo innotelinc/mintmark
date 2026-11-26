@@ -398,6 +398,44 @@ class DoctorTest(unittest.TestCase):
             self.assertIn("not writable", output)
 
 
+class DoctorSettingsTest(unittest.TestCase):
+    """The RUNBOOK sources /root/mintmark-web.env, so the shell must win."""
+
+    def test_the_environment_overrides_the_env_file(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text(
+                "MINTMARK_PORT=8930\n"
+                "MINTMARK_BASE_URL=https://from-file.example/v1\n"
+                "MINTMARK_DATA=./data\n"
+                "MINTMARK_API_KEY=mm_live_file\n"
+            )
+            shell = {
+                "MINTMARK_PORT": "18999",
+                "MINTMARK_BASE_URL": "https://from-shell.example/v1",
+                "MINTMARK_DATA": "/root/mintmark-data",
+                "MINTMARK_API_KEY": "mm_live_shell",
+            }
+            with patch.dict(os.environ, shell):
+                settings = wizard.doctor_settings(root)
+            self.assertEqual(settings["MINTMARK_PORT"], "18999")
+            self.assertEqual(settings["MINTMARK_BASE_URL"], "https://from-shell.example/v1")
+            self.assertEqual(settings["MINTMARK_DATA"], "/root/mintmark-data")
+            self.assertEqual(settings["MINTMARK_API_KEY"], "mm_live_shell")
+
+    def test_the_env_file_wins_when_the_environment_is_silent(self) -> None:
+        with Workspace() as root:
+            (root / ".env").write_text(
+                "MINTMARK_PORT=7777\nMINTMARK_BASE_URL=https://from-file.example/v1\nMINTMARK_DATA=./stack\n"
+            )
+            with patch.dict(os.environ, {}, clear=False):
+                for key in ("MINTMARK_PORT", "MINTMARK_BASE_URL", "MINTMARK_DATA", "MINTMARK_API_KEY"):
+                    os.environ.pop(key, None)
+                settings = wizard.doctor_settings(root)
+            self.assertEqual(settings["MINTMARK_PORT"], "7777")
+            self.assertEqual(settings["MINTMARK_BASE_URL"], "https://from-file.example/v1")
+            self.assertEqual(settings["MINTMARK_DATA"], "./stack")
+
+
 class HooksTest(unittest.TestCase):
     def test_installs_the_attribution_guards(self) -> None:
         with Workspace() as root:
