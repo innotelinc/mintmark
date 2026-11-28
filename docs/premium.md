@@ -96,12 +96,35 @@ curl -fsS https://mint.innotel.tech/api/billing     # {"plan":{"tier":"free",...
 6. Review notes: state that the app is free, that Pro is optional, and give the
    sandbox account used for the review screenshot — Apple tests IAP with it.
 
+## The shared ceiling
+
+`DAILY_DEPLOYMENT_LIMIT` is the cap across every visitor, signed in or not, and it
+used to be 250 — three Pro subscribers on a busy day would have spent the whole
+deployment and locked out every free visitor. It is now sized in Pro days:
+`PRO_DAILY_APPRAISAL_LIMIT` (100) × `DEPLOYMENT_PRO_HEADROOM` (25) = **2,500**.
+A subscriber therefore never meets the shared limit before their own, and a
+visitor clearing cookies still cannot spend without bound. Sizing it in Pro days
+means the next change to the Pro allowance moves the ceiling with it instead of
+silently under-cutting it; `tests/billing.test.ts` fails if the ceiling drops
+below twenty Pro days or ten free days.
+
 ## What was verified, and what was not
 
 - `npm run typecheck` (Worker) and `npx tsc --noEmit` (mobile) pass.
+- `npm test` covers the billing path without Apple and without D1: the ES256 token
+  the Worker signs (header, claims, signature checked against the key), the
+  production-then-sandbox lookup, rejection of another app's bundle, of a product
+  that is not Pro, of an expired, absent or refunded expiry, and the free tier
+  that a missing, lapsed or retired entitlement falls back to. It also drives
+  `POST /api/billing/verify` against an in-memory database, so a rejected purchase
+  is proven to store nothing.
+- `expo prebuild --platform ios` with `expo-iap` autolinked generates the native
+  project; the pod is in the generated `Podfile` and the StoreKit capability is
+  present. That proves the config plugin and module resolve on a clean prebuild;
+  it is not an Xcode build.
 - The limit path is covered by the code: `/api/state` and `POST /api/appraisals`
   both read the plan, and an expired or missing entitlement falls back to 25.
 - **Not verified here:** a real StoreKit purchase, the App Store Server API call
-  with a live key, `expo prebuild` with `expo-iap` autolinked, and any upload or
+  with a live key, an Xcode archive or TestFlight upload, and any App Store
   submission. Those need a macOS runner and your Apple account; none of it was
   run or claimed.

@@ -139,11 +139,23 @@ export const isProProduct = (value: string): value is ProProductId => (PRO_PRODU
 /** What a Pro subscriber gets per UTC day. */
 export const PRO_DAILY_APPRAISAL_LIMIT = 100
 /**
+ * How many Pro subscribers the deployment ceiling is sized for, each taking a
+ * full day. It is not a quota for anyone: it is what keeps the ceiling above the
+ * people who pay for it.
+ */
+export const DEPLOYMENT_PRO_HEADROOM = 25
+/**
  * The deployment's own ceiling for the day, across every visitor. Identity is
  * anonymous, so a client that clears its cookie or rotates its device id earns a
  * fresh allowance; this is what stops that from spending without bound.
+ *
+ * It is sized in Pro days rather than free ones. At 250, three Pro subscribers
+ * on a busy day would spend the whole deployment and lock out every free
+ * visitor, so the ceiling is 25 full Pro days (2,500 appraisals) — enough that a
+ * subscriber never encounters the shared limit before their own, and still a
+ * bound on what an anonymous visitor can spend by clearing its cookie.
  */
-export const DAILY_DEPLOYMENT_LIMIT = 250
+export const DAILY_DEPLOYMENT_LIMIT = PRO_DAILY_APPRAISAL_LIMIT * DEPLOYMENT_PRO_HEADROOM
 /** Uploaded photo, after the browser has scaled it down. */
 export const MAX_IMAGE_BYTES = 2_000_000
 export const MAX_THUMB_BYTES = 200_000

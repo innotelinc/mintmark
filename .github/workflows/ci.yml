@@ -69,3 +69,28 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+  billing:
+    name: Worker tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # The billing path spends money when it is wrong: a purchase Apple would
+      # reject must never become an entitlement, and a lapsed one must fall back
+      # to the free allowance. Apple and D1 are both stubbed here.
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Billing and plan tests
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test

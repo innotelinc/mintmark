@@ -41,7 +41,8 @@ The photos are in `fixtures/`, kept at 1280px and 200px:
 | `indian-head-1888-*` | [1888 Indian Head cent-obverse](https://commons.wikimedia.org/wiki/File:1888_Indian_Head_cent-obverse.jpg) | Public domain |
 
 Each appraisal costs one call on the deployment's daily ceiling, so reseeding
-repeatedly will eventually hit the 250-a-day limit; delete the seeded appraisals
+repeatedly will eventually hit the deployment ceiling in `DAILY_DEPLOYMENT_LIMIT`
+(2,500 a day, the shared one in `src/shared/config.ts`); delete the seeded appraisals
 when they are no longer wanted:
 
 ```sh
