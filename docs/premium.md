@@ -108,6 +108,14 @@ means the next change to the Pro allowance moves the ceiling with it instead of
 silently under-cutting it; `tests/billing.test.ts` fails if the ceiling drops
 below twenty Pro days or ten free days.
 
+A deployment on a tighter budget can lower it without editing code:
+`MINTMARK_DAILY_DEPLOYMENT_LIMIT=500` in the environment (for the self-hosted
+box, `compose.selfhost.yml` passes it through). It only ever lowers the
+ceiling — an unset, malformed or larger value keeps the shipped 2,500 — so a
+mistyped variable cannot spend more, and `/api/state` reports the effective
+number under `deployment.limit`. Set it below the Pro allowance only knowingly:
+a subscriber then meets the shared cap before their own.
+
 ## What was verified, and what was not
 
 - `npm run typecheck` (Worker) and `npx tsc --noEmit` (mobile) pass.

@@ -1,12 +1,11 @@
 import { Hono } from 'hono'
 
-import { DAILY_DEPLOYMENT_LIMIT } from '../../shared/config'
 import type { AppState } from '../../shared/types'
 import { appraisalsToday, appraisalsTodayAll, utcDay } from '../db'
 import type { AppContext } from '../env'
 import { maskKey, readGatewaySettings } from '../gateway'
 import { privateJson } from '../http'
-import { planFor } from '../plan'
+import { deploymentLimit, planFor } from '../plan'
 
 export const state = new Hono<AppContext>()
 
@@ -37,7 +36,7 @@ state.get('/', async (c) => {
     plan,
     deployment: {
       used: await appraisalsTodayAll(db),
-      limit: DAILY_DEPLOYMENT_LIMIT,
+      limit: deploymentLimit(c.env),
     },
   }
   return privateJson(c, body)

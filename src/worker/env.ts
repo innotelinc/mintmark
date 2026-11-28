@@ -11,6 +11,10 @@ export interface Env {
   // shared/config.ts.
   MINTMARK_BASE_URL?: string
   MINTMARK_MODEL?: string
+  // A tighter cap on appraisals across the whole deployment per UTC day. It can
+  // only lower the shipped 2,500, never raise it; unset, malformed or larger
+  // values keep the default. See deploymentLimit in plan.ts.
+  MINTMARK_DAILY_DEPLOYMENT_LIMIT?: string
   // In-app purchases. The three App Store Connect values authenticate the App
   // Store Server API call that turns a StoreKit transaction into an entitlement;
   // without them /api/billing answers 503 and the app stays on the free tier.

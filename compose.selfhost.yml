@@ -16,6 +16,8 @@ services:
       - "${MINTMARK_PORT:-8930}:8080"
     environment:
       MINTMARK_API_KEY: ${MINTMARK_API_KEY:?set MINTMARK_API_KEY before starting}
+      # Optional: lower the 2,500-a-day ceiling for this box. Empty keeps it.
+      MINTMARK_DAILY_DEPLOYMENT_LIMIT: ${MINTMARK_DAILY_DEPLOYMENT_LIMIT:-}
     volumes:
       # SQLite lives outside the image, so rebuilding keeps the data.
       - "${MINTMARK_DATA:-./data}:/data"

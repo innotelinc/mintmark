@@ -10,7 +10,9 @@
  *             SQLite file, because the worker creates its own schema on first use.
  *
  * `MINTMARK_API_KEY` is read from the environment, exactly as it was on the hosted
- * deployment, so the gateway key never ships inside the image.
+ * deployment, so the gateway key never ships inside the image. The optional
+ * `MINTMARK_*` overrides (gateway URL and model, the daily deployment ceiling)
+ * are passed through the same way.
  *
  * One deliberate behaviour lives here rather than in the worker: on a brand-new
  * database the free-appraisal default is written once (`requireKey = 0`), matching
@@ -149,6 +151,7 @@ const env = {
   MINTMARK_API_KEY: process.env.MINTMARK_API_KEY,
   MINTMARK_BASE_URL: process.env.MINTMARK_BASE_URL,
   MINTMARK_MODEL: process.env.MINTMARK_MODEL,
+  MINTMARK_DAILY_DEPLOYMENT_LIMIT: process.env.MINTMARK_DAILY_DEPLOYMENT_LIMIT,
 }
 
 const ctx = { waitUntil() {}, passThroughOnException() {} }

@@ -18,7 +18,7 @@ import {
 } from '../src/shared/config'
 import { BillingError, billingConfigured, verifyTransaction } from '../src/worker/appstore'
 import type { AppContext, Env } from '../src/worker/env'
-import { planFor } from '../src/worker/plan'
+import { deploymentLimit, planFor } from '../src/worker/plan'
 import { billing } from '../src/worker/routes/billing'
 
 /** Apple's bundle id for the app; a purchase from any other app must not count. */
@@ -371,5 +371,26 @@ describe('the deployment ceiling', () => {
     // be reachable by the first few subscribers on a busy day.
     expect(DAILY_DEPLOYMENT_LIMIT).toBeGreaterThanOrEqual(PRO_DAILY_APPRAISAL_LIMIT * 20)
     expect(DAILY_DEPLOYMENT_LIMIT).toBeGreaterThanOrEqual(DAILY_APPRAISAL_LIMIT * 10)
+  })
+
+  it('is the default when the deployment sets no override', () => {
+    expect(deploymentLimit(env())).toBe(DAILY_DEPLOYMENT_LIMIT)
+  })
+
+  it('can be lowered for a deployment on a tighter budget', () => {
+    expect(deploymentLimit(env({ MINTMARK_DAILY_DEPLOYMENT_LIMIT: '600' }))).toBe(600)
+    expect(deploymentLimit(env({ MINTMARK_DAILY_DEPLOYMENT_LIMIT: ' 40 ' }))).toBe(40)
+  })
+
+  it('cannot be raised above the shipped ceiling', () => {
+    expect(deploymentLimit(env({ MINTMARK_DAILY_DEPLOYMENT_LIMIT: String(DAILY_DEPLOYMENT_LIMIT * 4) }))).toBe(
+      DAILY_DEPLOYMENT_LIMIT,
+    )
+  })
+
+  it('ignores a value that is not a positive whole number', () => {
+    for (const value of ['', '   ', '0', '-5', '12.5', '250 appraisals', 'lots']) {
+      expect(deploymentLimit(env({ MINTMARK_DAILY_DEPLOYMENT_LIMIT: value }))).toBe(DAILY_DEPLOYMENT_LIMIT)
+    }
   })
 })

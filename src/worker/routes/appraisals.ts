@@ -4,13 +4,13 @@
 
 import { Hono } from 'hono'
 
-import { DAILY_DEPLOYMENT_LIMIT, MAX_IMAGE_BYTES, MAX_NOTE_CHARS, MAX_THUMB_BYTES } from '../../shared/config'
+import { MAX_IMAGE_BYTES, MAX_NOTE_CHARS, MAX_THUMB_BYTES } from '../../shared/config'
 import type { Appraisal, AppraisalAnalysis } from '../../shared/types'
 import { appraisalsToday, appraisalsTodayAll, id, mapSummary, now, utcDay } from '../db'
 import type { AppContext } from '../env'
 import { readGatewaySettings } from '../gateway'
 import { privateJson } from '../http'
-import { planFor } from '../plan'
+import { deploymentLimit, planFor } from '../plan'
 import { VisionError, analyzeCoin } from '../vision'
 
 export const appraisals = new Hono<AppContext>()
@@ -71,7 +71,7 @@ appraisals.post('/', async (c) => {
   }
   // Identity is anonymous, so a visitor can earn a fresh allowance by clearing
   // its cookie or its device id. The deployment ceiling is the backstop.
-  if ((await appraisalsTodayAll(db)) >= DAILY_DEPLOYMENT_LIMIT) {
+  if ((await appraisalsTodayAll(db)) >= deploymentLimit(c.env)) {
     return c.json(
       { error: 'limit', message: 'Mintmark has used up its appraisals for today. Try again tomorrow.', resetsAt: utcDay().end },
       429,

@@ -177,7 +177,9 @@ everyone — the identity is anonymous, so a client can always earn a fresh
 allowance by clearing its cookie. That ceiling is sized in Pro days
 (`PRO_DAILY_APPRAISAL_LIMIT` × `DEPLOYMENT_PRO_HEADROOM` = 25 full subscribers),
 not free ones, so the people paying are never the ones locked out; the tests
-fail if it is lowered back below twenty Pro days.
+fail if it is lowered back below twenty Pro days. A deployment that wants a
+tighter spend cap sets `MINTMARK_DAILY_DEPLOYMENT_LIMIT`; it can lower the
+ceiling, never raise it.
 
 ## Hosting it on our own box
 
